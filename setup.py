@@ -25,7 +25,7 @@ def read(*names, **kwargs):
 
 setup(
     name='table-data-reader',
-    version='0.1.0',
+    version='0.1.1',
     license='Apache-2.0',
     description='Tool to read model data from a table',
     long_description='%s\n%s' % (
