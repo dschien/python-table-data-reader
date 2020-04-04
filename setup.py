@@ -25,14 +25,14 @@ def read(*names, **kwargs):
 
 setup(
     name='table-data-reader',
-    version='0.0.0',
+    version='0.1.0',
     license='Apache-2.0',
     description='Tool to read model data from a table',
     long_description='%s\n%s' % (
         re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.rst')),
         re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGELOG.rst'))
     ),
-    author='Dan Schie',
+    author='Dan Schien',
     author_email='daniel.schien@bristol.ac.uk',
     url='https://github.com/dschien/python-table-data-reader',
     packages=find_packages('src'),
@@ -71,8 +71,13 @@ setup(
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
-    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
+    python_requires='>=3.6',
     install_requires=[
+        'scipy',
+        'xlrd',
+        'pandas',
+        'numpy',
+        'python-dateutil',
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
