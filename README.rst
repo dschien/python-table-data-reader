@@ -27,10 +27,6 @@ Overview
     :alt: AppVeyor Build Status
     :target: https://ci.appveyor.com/project/dschien/python-table-data-reader
 
-.. |requires| image:: https://requires.io/github/dschien/python-table-data-reader/requirements.svg?branch=master
-    :alt: Requirements Status
-    :target: https://requires.io/github/dschien/python-table-data-reader/requirements/?branch=master
-
 .. |codecov| image:: https://codecov.io/gh/dschien/python-table-data-reader/branch/master/graphs/badge.svg?branch=master
     :alt: Coverage Status
     :target: https://codecov.io/github/dschien/python-table-data-reader
