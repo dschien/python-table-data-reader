@@ -1,7 +1,7 @@
 import unittest
 from unittest import skip
 
-from excel_helper import ParameterRepository, Parameter
+from table_data_reader import ParameterRepository, Parameter
 
 
 class ParameterRepositoryTestCase(unittest.TestCase):

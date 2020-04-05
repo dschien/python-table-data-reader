@@ -1,0 +1,6 @@
+scipy
+numpy
+pandas==0.24.2
+xlrd
+pint
+# pint-pandas

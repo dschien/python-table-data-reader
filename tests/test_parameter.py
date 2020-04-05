@@ -1,7 +1,7 @@
 import unittest
 
 import pandas as pd
-from excel_helper import Parameter, DistributionFunctionGenerator, GrowthTimeSeriesGenerator
+from table_data_reader import Parameter, DistributionFunctionGenerator, GrowthTimeSeriesGenerator
 from scipy import stats
 import pint
 

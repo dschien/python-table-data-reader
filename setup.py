@@ -70,9 +70,10 @@ setup(
     install_requires=[
         'scipy',
         'xlrd',
-        'pandas',
+        'pandas==0.24.2',
         'numpy',
         'python-dateutil',
+        'pint'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
