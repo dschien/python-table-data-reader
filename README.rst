@@ -47,9 +47,9 @@ Overview
     :alt: Supported implementations
     :target: https://pypi.org/project/table-data-reader
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/dschien/eam-table-data-reader/v0.0.0.svg
+.. |commits-since| image:: https://img.shields.io/github/commits-since/dschien/eam-table-data-reader/v0.1.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/dschien/eam-table-data-reader/compare/v0.0.0...master
+    :target: https://github.com/dschien/eam-table-data-reader/compare/v0.1.0...master
 
 
 
