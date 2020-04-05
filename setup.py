@@ -24,7 +24,7 @@ def read(*names, **kwargs):
 
 
 setup(
-    name='table-data-reader',
+    name='eam-table-data-reader',
     version='0.1.1',
     license='Apache-2.0',
     description='Tool to read model data from a table',
@@ -34,7 +34,7 @@ setup(
     ),
     author='Dan Schien',
     author_email='daniel.schien@bristol.ac.uk',
-    url='https://github.com/dschien/python-table-data-reader',
+    url='https://github.com/dschien/eam-table-data-reader',
     packages=find_packages('src'),
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
@@ -59,9 +59,9 @@ setup(
         'Topic :: Utilities',
     ],
     project_urls={
-        'Documentation': 'https://python-table-data-reader.readthedocs.io/',
-        'Changelog': 'https://python-table-data-reader.readthedocs.io/en/latest/changelog.html',
-        'Issue Tracker': 'https://github.com/dschien/python-table-data-reader/issues',
+        'Documentation': 'https://eam-table-data-reader.readthedocs.io/',
+        'Changelog': 'https://eam-table-data-reader.readthedocs.io/en/latest/changelog.html',
+        'Issue Tracker': 'https://github.com/dschien/eam-table-data-reader/issues',
     },
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',
