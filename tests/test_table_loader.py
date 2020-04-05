@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from dateutil import relativedelta
 
-from excel_helper import ExcelParameterLoader, ParameterRepository, growth_coefficients
+from table_data_reader import ExcelParameterLoader, ParameterRepository, growth_coefficients
 import pint
 
 class CSVParameterLoaderTestCase(unittest.TestCase):
@@ -18,7 +18,9 @@ class CSVParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2016-01-01', '2017-01-01', freq='MS'),
                     'sample_mean_value': False, 'use_time_series': True}
-        n = np.mean(p(settings))
+        val = p(settings)
+        series = val.pint.m
+        n = series.mean(level='time').mean()
         assert n > 0.7
 
 
@@ -66,16 +68,19 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
         n = series.mean(level='time').mean()
         assert n > 0.7
 
-    def test_parameter_getvalue_with_settings_mean(self):
+    def test_parameter_getvalue_mean(self):
         repository = ParameterRepository()
         ExcelParameterLoader(filename='./test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
-                                                                                          repository=repository)
+                                                                                             repository=repository)
         p = repository.get_parameter('a')
 
-        settings = {'sample_size': 3, 'times': pd.date_range('2009-01-01', '2009-12-01', freq='MS'),
-                    'sample_mean_value': True}
-        r = p(settings)
-        print(r)
+        settings = {'sample_size': 3, 'times': pd.date_range('2010-01-01', '2010-12-01', freq='MS'),
+                    'sample_mean_value': True, 'use_time_series': True}
+        val = p(settings)
+        series = val.pint.m
+        n = series.mean(level='time').mean()
+
+        assert n > 0.7
 
     def test_column_order(self):
         repository = ParameterRepository()
@@ -156,15 +161,28 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
         ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('b')
+
         val = p({'sample_mean_value': True, 'sample_size': 5})
+
+        print(val)
+        assert (val == 3).all()
+
+    def test_uniform_mean_growth(self):
+        repository = ParameterRepository()
+        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+                                                                                         repository=repository)
+        p = repository.get_parameter('uniform_dist_growth')
+
+        val = p({'sample_mean_value': True, 'sample_size': 5, 'use_time_series': True,
+                    'times': pd.date_range('2009-01-01', '2010-01-01', freq='MS')})
+
         print(val)
         assert (val == 3).all()
 
     def test_parameter_getvalue_with_settings_mean(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx', excel_handler='xlrd').load_into_repo(
-            sheet_name='Sheet1', repository=repository)
-
+        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+                                                                                         repository=repository)
         p = repository.get_parameter('uniform_dist_growth')
 
         settings = {'sample_size': 1, 'sample_mean_value': True, 'use_time_series': True,

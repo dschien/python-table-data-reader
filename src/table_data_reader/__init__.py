@@ -1,4 +1,5 @@
 __version__ = '0.0.0'
+
 import csv
 import datetime
 import importlib
@@ -602,8 +603,8 @@ class ParameterRepository(object):
 class ExcelHandler(object):
     version: int
 
-    def __init__(self):
-        self.version = 1
+    def __init__(self, version=2):
+        self.version = version
 
     @abstractmethod
     def load_definitions(self, sheet_name, filename=None):
@@ -659,7 +660,57 @@ class Xlsx2CsvHandler(ExcelHandler):
 
 class CSVHandler(ExcelHandler):
     def load_definitions(self, sheet_name, filename=None):
-        return csv.DictReader(open(filename), delimiter=',')
+        reader = csv.DictReader(open(filename), delimiter=',')
+
+        definitions = []
+
+        _definition_tracking = defaultdict(dict)
+
+        for i, row in enumerate(reader):
+
+            values = row
+
+            if not values['variable']:
+                logger.debug(f'ignoring row {i}: {row}')
+                continue
+            for key in ['ref value', 'initial_value_proportional_variation', 'mean growth', 'variability growth']:
+                try:
+                    new_val = float(values[key])
+                    values[key] = new_val
+                except:
+                    if values['type'] == 'interp':
+                        continue
+                    else:
+                        raise Exception(
+                            f'Could not convert value <{values[key]}> for key {key} to number in row {i} for variable {values["variable"]}')
+
+            if 'ref date' in values and values['ref date']:
+                if isinstance(values['ref date'], str):
+                    values['ref date'] = datetime.datetime.strptime(values['ref date'], '%d/%m/%Y')
+                    if values['ref date'].day != 1:
+                        logger.warning(
+                            f'ref date truncated to first of month for variable {values["variable"]}')
+                        values['ref date'] = values['ref date'].replace(day=1)
+                else:
+                    raise Exception(
+                        f"{values['ref date']} for variable {values['variable']} is not a date - "
+                        f"check spreadsheet value is a valid day of a month")
+            logger.debug(f'values for {values["variable"]}: {values}')
+            definitions.append(values)
+            scenario = values['scenario'] if values['scenario'] else "n/a"
+
+            if scenario in _definition_tracking[values['variable']]:
+
+                logger.error(
+                    f"Duplicate entry for parameter "
+                    f"with name <{values['variable']}> and <{scenario}> scenario in file")
+                raise ValueError(
+                    f"Duplicate entry for parameter "
+                    f"with name <{values['variable']}> and <{scenario}> scenario in file")
+
+            else:
+                _definition_tracking[values['variable']][scenario] = 1
+        return definitions
 
 
 class PandasCSVHandler(ExcelHandler):
@@ -801,16 +852,16 @@ class ExcelParameterLoader(object):
 
        """
 
-    def __init__(self, filename, excel_handler='xlrd', **kwargs):
+    def __init__(self, filename, excel_handler='xlrd', version=2, **kwargs):
         self.filename = filename
-        self.definition_version = 2
+        self.definition_version = 2  # default - will be overwritten by handler
 
         logger.info(f'Using {excel_handler} excel handler')
         excel_handler_instance = None
         if excel_handler == 'csv':
-            excel_handler_instance = CSVHandler()
+            excel_handler_instance = CSVHandler(version)
         if excel_handler == 'pandas':
-            excel_handler_instance = PandasCSVHandler()
+            excel_handler_instance = PandasCSVHandler(version)
         if excel_handler == 'openpyxl':
             excel_handler_instance = OpenpyxlExcelHandler()
         if excel_handler == 'xlsx2csv':
