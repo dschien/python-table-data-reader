@@ -23,13 +23,13 @@ Overview
     :alt: Travis-CI Build Status
     :target: https://travis-ci.org/dschien/eam-table-data-reader
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/dschien/python-table-data-reader?branch=master&svg=true
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/dschien/eam-table-data-reader?branch=master&svg=true
     :alt: AppVeyor Build Status
-    :target: https://ci.appveyor.com/project/dschien/python-table-data-reader
+    :target: https://ci.appveyor.com/project/dschien/eam-table-data-reader
 
-.. |codecov| image:: https://codecov.io/gh/dschien/python-table-data-reader/branch/master/graphs/badge.svg?branch=master
+.. |codecov| image:: https://codecov.io/gh/dschien/eam-table-data-reader/branch/master/graphs/badge.svg?branch=master
     :alt: Coverage Status
-    :target: https://codecov.io/github/dschien/python-table-data-reader
+    :target: https://codecov.io/github/dschien/eam-table-data-reader
 
 .. |version| image:: https://img.shields.io/pypi/v/table-data-reader.svg
     :alt: PyPI Package latest release
@@ -47,9 +47,9 @@ Overview
     :alt: Supported implementations
     :target: https://pypi.org/project/table-data-reader
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/dschien/python-table-data-reader/v0.0.0.svg
+.. |commits-since| image:: https://img.shields.io/github/commits-since/dschien/eam-table-data-reader/v0.0.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/dschien/python-table-data-reader/compare/v0.0.0...master
+    :target: https://github.com/dschien/eam-table-data-reader/compare/v0.0.0...master
 
 
 
