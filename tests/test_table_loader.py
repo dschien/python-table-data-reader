@@ -1,18 +1,19 @@
 import unittest
 from datetime import date
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from dateutil import relativedelta
 
 from table_data_reader import ExcelParameterLoader, ParameterRepository, growth_coefficients
 import pint
 
+
 class CSVParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_exp(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_v2.csv', excel_handler='csv').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_v2.csv', excel_handler='csv').load_into_repo(sheet_name='Sheet1',
                                                                                            repository=repository)
         p = repository.get_parameter('a')
 
@@ -28,7 +29,7 @@ class PandasCSVParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_exp(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_v2.csv', excel_handler='pandas').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_v2.csv', excel_handler='pandas').load_into_repo(sheet_name='Sheet1',
                                                                                               repository=repository)
         p = repository.get_parameter('a')
 
@@ -44,7 +45,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_exp(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
                                                                                              repository=repository)
         p = repository.get_parameter('a')
 
@@ -57,7 +58,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_linear(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
                                                                                              repository=repository)
         p = repository.get_parameter('b')
 
@@ -70,7 +71,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_mean(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
                                                                                              repository=repository)
         p = repository.get_parameter('a')
 
@@ -84,7 +85,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_column_order(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='shuffle_col_order',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='shuffle_col_order',
                                                                                          repository=repository)
 
         p = repository.get_parameter('z')
@@ -93,28 +94,28 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_choice_single_param(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('choice_var')
         assert p() == .9
 
     def test_choice_two_params(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('a')
         assert p() in [1, 2]
 
     def test_multiple_choice(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('multiple_choice')
         assert p() in [1, 2, 3]
 
     def test_choice_time(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx',
                              times=pd.date_range('2009-01-01', '2015-05-01', freq='MS'), size=10
                              ).load_into_repo(sheet_name='Sheet1', repository=repository)
 
@@ -124,7 +125,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
         assert (val == .9).all()
 
     def test_choice_two_params_with_time(self):
-        loader = ExcelParameterLoader(filename='./test_excelparameterloader.xlsx',
+        loader = ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx',
                                       times=pd.date_range('2009-01-01', '2009-03-01', freq='MS'), size=10)
         repository = ParameterRepository()
         loader.load_into_repo(sheet_name='Sheet1', repository=repository)
@@ -138,7 +139,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_uniform(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('b')
         val = p()
@@ -146,7 +147,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_uniform_time(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx',
                              times=pd.date_range('2009-01-01', '2015-05-01', freq='MS'), size=10
                              ).load_into_repo(sheet_name='Sheet1', repository=repository)
         p = repository.get_parameter('b')
@@ -158,7 +159,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_uniform_mean(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('b')
 
@@ -169,7 +170,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_uniform_mean_growth(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('uniform_dist_growth')
 
@@ -182,7 +183,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_with_settings_mean(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('uniform_dist_growth')
 
@@ -196,7 +197,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_triagular(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx').load_into_repo(sheet_name='Sheet1',
                                                                                          repository=repository)
         p = repository.get_parameter('c')
 
@@ -206,7 +207,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_triagular_time(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_excelparameterloader.xlsx',
+        ExcelParameterLoader(filename='./tests/test_excelparameterloader.xlsx',
                              times=pd.date_range('2009-01-01', '2015-05-01', freq='MS'), size=10
                              ).load_into_repo(sheet_name='Sheet1', repository=repository)
 
@@ -218,7 +219,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_triangular_timeseries(self):
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test.xlsx').load_into_repo(sheet_name='Sheet1', repository=repository)
+        ExcelParameterLoader(filename='./tests/test.xlsx').load_into_repo(sheet_name='Sheet1', repository=repository)
 
         p = repository.get_parameter('c')
 

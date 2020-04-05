@@ -1,7 +1,8 @@
 =====
 Usage
 =====
-**The below refers to table format v1 and needs updating.
+
+**The below refers to table format v1 and needs updating.**
 
 To use table-data-reader in a project::
 
@@ -26,7 +27,7 @@ You can also specify a .csv file with samples and an empiricial distribution fun
 and variable values will be sampled from that.
 
 Scenarios
-=====
+=========
 It is possible to define scenarios and have paramter values for  a variable change with each scenario.::
 
 
@@ -43,7 +44,7 @@ It is possible to define scenarios and have paramter values for  a variable chan
 use `data.unselect_scenario()` to return to the default value.
 
 Pandas Dataframes
-=======
+=================
 
 It is possible to define a time frame for distributions and have sample values change over time.::
 
@@ -60,7 +61,7 @@ It is possible to define a time frame for distributions and have sample values c
 
 
 Metadata
-===
+========
 The contents of the rows is also contained in the metadata::
 
     # the time axis of our dataset

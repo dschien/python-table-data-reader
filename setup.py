@@ -12,7 +12,8 @@ from os.path import join
 from os.path import splitext
 
 from setuptools import find_packages
-from setuptools import setup
+# from setuptools import setup
+from distutils.core import setup
 
 
 def read(*names, **kwargs):
@@ -22,6 +23,20 @@ def read(*names, **kwargs):
     ) as fh:
         return fh.read()
 
+
+install_requirements = [
+    'scipy',
+    'xlrd',
+    'pandas==0.24.2',
+    'numpy',
+    'python-dateutil',
+    'pint @        git+ssh://git@github.com/hgrecco/pint.git@f356379c15c1cb5d211c795872ac9e9284d2358f#egg=pint',
+    'pint-pandas @ git+ssh://git@github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
+]
+
+extra_requirements = {
+    "test": ["pytest", "pytest-cov", "codecov", "coveralls", "nbval"]
+}
 
 setup(
     name='eam-table-data-reader',
@@ -67,20 +82,8 @@ setup(
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
     python_requires='>=3.6',
-    install_requires=[
-        'scipy',
-        'xlrd',
-        'pandas==0.24.2',
-        'numpy',
-        'python-dateutil',
-        'pint'
-        # eg: 'aspectlib==1.1.1', 'six>=1.7',
-    ],
-    extras_require={
-        # eg:
-        #   'rst': ['docutils>=0.11'],
-        #   ':python_version=="2.6"': ['argparse'],
-    },
+    install_requires=install_requirements,
+    extras_require=extra_requirements,
     entry_points={
         'console_scripts': [
             'table-data-reader = table_data_reader.cli:main',

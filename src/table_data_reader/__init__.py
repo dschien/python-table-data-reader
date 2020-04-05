@@ -3,7 +3,7 @@ __version__ = '1.0.0'
 import csv
 import datetime
 import importlib
-import sys
+
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Dict, List, Set
@@ -258,7 +258,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         mu = self.generate_mu(end_date, ref_date, start_date)
 
         # 3. Generate $\sigma$
-        ## Prepare array with growth values $\sigma$
+        # Prepare array with growth values $\sigma$
         if self.sample_mean_value:
             sigma = np.zeros((len(self.times), self.size))
         else:
@@ -278,13 +278,13 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
         # logger.debug(ref_date.strftime("%b %d %Y"))
 
-        ## 4. Prepare growth array for $\alpha_{sigma}$
+        # 4. Prepare growth array for $\alpha_{sigma}$
         alpha_sigma = growth_coefficients(start_date,
                                           end_date,
                                           ref_date,
                                           self.kwargs['ef_growth_factor'], 1)
 
-        ### 5. Prepare DataFrame
+        # 5. Prepare DataFrame
         iterables = [self.times, range(self.size)]
         index_names = ['time', 'samples']
         _multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
@@ -295,7 +295,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         r = relativedelta.relativedelta(end_date, start_date)
         months = r.years * 12 + r.months + 1
         name = kwargs['name']
-        ## Apply growth to $\sigma$ and add $\sigma$ to $\mu$
+        # Apply growth to $\sigma$ and add $\sigma$ to $\mu$
         # logger.debug(sigma.size)
         # logger.debug(alpha_sigma.shape)
         # logger.debug(months)
@@ -306,7 +306,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
                            dtype=f'pint[{unit_}]')
 
-        ## test if df has sub-zero values
+        # test if df has sub-zero values
         df_sigma__dropna = series.where(series < 0).dropna()
         if not df_sigma__dropna.pint.m.empty:
             logger.warning(f"Negative values for parameter {name} from {df_sigma__dropna.index[0][0]}")
@@ -527,18 +527,21 @@ class ParameterRepository(object):
 
         E.g. in the example below, the source for the Power_TV variable in the 8K scenario would also be EnergyStar.
 
+        +----------+----------+-----+--------+------------+
         | name     | scenario | val | tags   | source     |
-        |----------|----------|-----|--------|------------|
+        +----------+----------+-----+--------+------------+
         | Power_TV |          | 60  | UD, TV | EnergyStar |
         | Power_TV | 8K       | 85  | new_tag|            |
+        +----------+----------+-----+--------+------------+
 
         **Note** tags must not differ. In the example above, the 8K scenario variable the tags value would be overwritten
         with the default value.
 
         :param param:
         :return:
+
         """
-        if not self.exists(param.name) or not ParameterScenarioSet.default_scenario in self.parameter_sets[
+        if not self.exists(param.name) or ParameterScenarioSet.default_scenario not in self.parameter_sets[
             param.name].scenarios.keys():
             logger.warning(
                 f'No default value for param {param.name} found.')
@@ -549,12 +552,14 @@ class ParameterRepository(object):
 
                 if att_name == 'tags' and default.tags != param.tags:
                     logger.warning(
-                        f'For param {param.name} for scenarios {param.source_scenarios_string}, tags is different from default parameter tags. Overwriting with default values.')
+                        f'For param {param.name} for scenarios {param.source_scenarios_string}, '
+                        f'tags is different from default parameter tags. Overwriting with default values.')
                     setattr(param, att_name, att_value)
 
                 if not getattr(param, att_name):
                     logger.debug(
-                        f'For param {param.name} for scenarios {param.source_scenarios_string}, populating attribute {att_name} with value {att_value} from default parameter.')
+                        f'For param {param.name} for scenarios {param.source_scenarios_string}, '
+                        f'populating attribute {att_name} with value {att_value} from default parameter.')
 
                     setattr(param, att_name, att_value)
 
@@ -580,8 +585,9 @@ class ParameterRepository(object):
         Get all registered dicts that are registered for a tag
 
         :param tag: str - single tag
-        :return: a dict of {param name: set[Parameter]} that contains all ParameterScenarioSets for
-        all parameter names with a given tag
+
+        :return: a dict of {param name: set[Parameter]} that contains all ParameterScenarioSets for all parameter names with a given tag
+
         """
         return self.tags[tag]
 

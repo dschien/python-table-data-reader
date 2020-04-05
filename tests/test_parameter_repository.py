@@ -2,7 +2,7 @@ import unittest
 from unittest import skip
 
 from table_data_reader import ParameterRepository, Parameter
-
+import pint
 
 class ParameterRepositoryTestCase(unittest.TestCase):
 

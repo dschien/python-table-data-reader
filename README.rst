@@ -10,11 +10,10 @@ Overview
     * - docs
       - |docs|
     * - tests
-      - | |travis| |appveyor| |requires|
+      - | |travis| |appveyor|
         | |codecov|
     * - package
       - | |version| |wheel| |supported-versions| |supported-implementations|
-        | |commits-since|
 .. |docs| image:: https://readthedocs.org/projects/eam-table-data-reader/badge/?style=flat
     :target: https://readthedocs.org/projects/eam-table-data-reader
     :alt: Documentation Status
@@ -33,23 +32,20 @@ Overview
 
 .. |version| image:: https://img.shields.io/pypi/v/table-data-reader.svg
     :alt: PyPI Package latest release
-    :target: https://pypi.org/project/table-data-reader
+    :target: https://pypi.org/project/eam-table-data-reader/
 
 .. |wheel| image:: https://img.shields.io/pypi/wheel/table-data-reader.svg
     :alt: PyPI Wheel
-    :target: https://pypi.org/project/table-data-reader
+    :target: https://pypi.org/project/eam-table-data-reader/
 
 .. |supported-versions| image:: https://img.shields.io/pypi/pyversions/table-data-reader.svg
     :alt: Supported versions
-    :target: https://pypi.org/project/table-data-reader
+    :target: https://pypi.org/project/eam-table-data-reader/
 
 .. |supported-implementations| image:: https://img.shields.io/pypi/implementation/table-data-reader.svg
     :alt: Supported implementations
-    :target: https://pypi.org/project/table-data-reader
+    :target: https://pypi.org/project/eam-table-data-reader/
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/dschien/eam-table-data-reader/v1.0.0.svg
-    :alt: Commits since latest release
-    :target: https://github.com/dschien/eam-table-data-reader/compare/v1.0.0...master
 
 
 

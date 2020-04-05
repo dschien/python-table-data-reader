@@ -1,8 +1,10 @@
 import unittest
 
 import pandas as pd
-from table_data_reader import Parameter, DistributionFunctionGenerator, GrowthTimeSeriesGenerator
 from scipy import stats
+
+from table_data_reader import Parameter
+
 import pint
 
 class ParameterTestCase(unittest.TestCase):
