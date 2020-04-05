@@ -90,7 +90,8 @@ Given an excel file with rows similar to the below
 | b        |          | interp | {"2010-01-01":1, "2010-03-01":100 , "2010-12-01":110} | linear | 0.4                                  | kg   | -0.20       | 0.10               | 01/01/2009 | test var 1 |         |        |
 +----------+----------+--------+-------------------------------------------------------+--------+--------------------------------------+------+-------------+--------------------+------------+------------+---------+--------+
 
-You can run python/ numpy code that references these variables and generates random distributions.::
+Write code that references these variables and generates random distributions in pandas dataframes with `pint-pandas
+<https://github.com/hgrecco/pint-pandas>`_ units.::
 
         repository = ParameterRepository()
         ExcelParameterLoader(filename='./test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
