@@ -7,7 +7,9 @@ Contents
 
    readme
    installation
+   tables
    usage
+   development
    reference/index
    contributing
    authors
