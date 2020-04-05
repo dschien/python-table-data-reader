@@ -40,7 +40,7 @@ extra_requirements = {
 
 setup(
     name='eam-table-data-reader',
-    version='1.0.0',
+    version='1.0.1',
     license='Apache-2.0',
     description='Tool to read model data from a table',
     long_description='%s\n%s' % (
