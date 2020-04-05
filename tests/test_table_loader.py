@@ -176,8 +176,9 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
         val = p({'sample_mean_value': True, 'sample_size': 5, 'use_time_series': True,
                     'times': pd.date_range('2009-01-01', '2010-01-01', freq='MS')})
 
-        print(val)
-        assert (val == 3).all()
+        val = val.pint.m
+
+        assert (val >= 3).all()
 
     def test_parameter_getvalue_with_settings_mean(self):
         repository = ParameterRepository()
@@ -188,6 +189,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
         settings = {'sample_size': 1, 'sample_mean_value': True, 'use_time_series': True,
                     'times': pd.date_range('2009-01-01', '2010-01-01', freq='MS')}
         val = p(settings)
+        val = val.pint.m
         print(val)
         n = np.mean(val)
         assert n > 0.7
@@ -230,6 +232,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
         }
 
         res = p(settings)
+        res = res.pint.m
         print(res)
         assert (res < 10.).all() & (res > 3.).all()
 
