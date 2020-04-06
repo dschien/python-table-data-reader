@@ -30,8 +30,11 @@ install_requirements = [
     'pandas==0.24.2',
     'numpy',
     'python-dateutil',
-    'pint @        git+ssh://git@github.com/hgrecco/pint.git@f356379c15c1cb5d211c795872ac9e9284d2358f#egg=pint',
-    'pint-pandas @ git+ssh://git@github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
+    # 'pint @        https://github.com/hgrecco/pint.git#egg=pint',
+    # 'pint @ https://github.com/hgrecco/pint/zipball/master',
+    'pint @        git+https://github.com/hgrecco/pint.git@f356379c15c1cb5d211c795872ac9e9284d2358f#egg=pint',
+    # 'pint-pandas @ https://github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
+    'pint-pandas @ git+https://github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
 ]
 
 extra_requirements = {
