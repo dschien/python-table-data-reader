@@ -22,9 +22,9 @@ Overview
     :alt: Travis-CI Build Status
     :target: https://travis-ci.org/dschien/eam-data-tools
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/dschien/eam-table-data-reader?branch=master&svg=true
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/dschien/eam-data-tools?branch=master&svg=true
     :alt: AppVeyor Build Status
-    :target: https://ci.appveyor.com/project/dschien/eam-table-data-reader
+    :target: https://ci.appveyor.com/project/dschien/eam-data-tools
 
 .. |codecov| image:: https://codecov.io/gh/dschien/eam-data-tools/branch/master/graphs/badge.svg?branch=master
     :alt: Coverage Status
@@ -53,17 +53,17 @@ Installation
 
 ::
 
-    pip install eam-table-data-reader
+    pip install eam-data-tools
 
 You can also install the in-development version with::
 
-    pip install https://github.com/dschien/eam-table-data-reader/archive/master.zip
+    pip install https://github.com/dschien/eam-data-tools/archive/master.zip
 
 
 Documentation
 =============
 
-https://eam-table-data-reader.readthedocs.io/
+https://eam-data-tools.readthedocs.io/
 
 Usage
 =====
