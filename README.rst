@@ -13,41 +13,34 @@ Overview
       - | |travis| |appveyor|
         | |codecov|
     * - package
-      - | |version| |wheel| |supported-versions| |supported-implementations|
-.. |docs| image:: https://readthedocs.org/projects/eam-table-data-reader/badge/?style=flat
-    :target: https://readthedocs.org/projects/eam-table-data-reader
+      - | |version| |supported-versions| |supported-implementations|
+.. |docs| image:: https://readthedocs.org/projects/eam-data-tools/badge/?style=flat
+    :target: https://readthedocs.org/projects/eam-data-tools
     :alt: Documentation Status
 
-.. |travis| image:: https://api.travis-ci.org/dschien/eam-table-data-reader.svg?branch=master
+.. |travis| image:: https://api.travis-ci.org/dschien/eam-data-tools.svg?branch=master
     :alt: Travis-CI Build Status
-    :target: https://travis-ci.org/dschien/eam-table-data-reader
+    :target: https://travis-ci.org/dschien/eam-data-tools
 
 .. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/dschien/eam-table-data-reader?branch=master&svg=true
     :alt: AppVeyor Build Status
     :target: https://ci.appveyor.com/project/dschien/eam-table-data-reader
 
-.. |codecov| image:: https://codecov.io/gh/dschien/eam-table-data-reader/branch/master/graphs/badge.svg?branch=master
+.. |codecov| image:: https://codecov.io/gh/dschien/eam-data-tools/branch/master/graphs/badge.svg?branch=master
     :alt: Coverage Status
-    :target: https://codecov.io/github/dschien/eam-table-data-reader
+    :target: https://codecov.io/github/dschien/eam-data-tools
 
-.. |version| image:: https://img.shields.io/pypi/v/table-data-reader.svg
+.. |version| image:: https://img.shields.io/pypi/v/eam-data-tools.svg
     :alt: PyPI Package latest release
-    :target: https://pypi.org/project/eam-table-data-reader/
+    :target: https://pypi.org/project/eam-data-tools/
 
-.. |wheel| image:: https://img.shields.io/pypi/wheel/table-data-reader.svg
-    :alt: PyPI Wheel
-    :target: https://pypi.org/project/eam-table-data-reader/
-
-.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/table-data-reader.svg
+.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/eam-data-tools.svg
     :alt: Supported versions
-    :target: https://pypi.org/project/eam-table-data-reader/
+    :target: https://pypi.org/project/eam-data-tools/
 
-.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/table-data-reader.svg
+.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/eam-data-tools.svg
     :alt: Supported implementations
-    :target: https://pypi.org/project/eam-table-data-reader/
-
-
-
+    :target: https://pypi.org/project/eam-data-tools/
 
 .. end-badges
 
