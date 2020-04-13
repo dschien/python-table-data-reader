@@ -199,7 +199,9 @@ class Parameter(object):
                 settings = {}
 
             common_args = {'size': settings.get('sample_size', 1),
-                           'sample_mean_value': settings.get('sample_mean_value', False)}
+                           'sample_mean_value': settings.get('sample_mean_value', False),
+                           'with_pint_units': settings.get('with_pint_units', False)
+                           }
             common_args.update(**self.kwargs)
 
             if settings.get('use_time_series', False):
@@ -229,11 +231,13 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
     # error function growth rate
     ef_growth_factor: str
 
-    def __init__(self, times=None, size=None, index_names=None, ref_date=None, *args, **kwargs):
+    def __init__(self, times=None, size=None, index_names=None, ref_date=None, with_pint_units=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.ref_date = ref_date if ref_date else None
-
+        self.with_pint_units = with_pint_units
+        if self.with_pint_units:
+            import pint
         self.times = times
         self.size = size
         iterables = [times, range(0, size)]
@@ -299,16 +303,26 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         # logger.debug(sigma.size)
         # logger.debug(alpha_sigma.shape)
         # logger.debug(months)
-        unit_ = kwargs["unit"]
-        if not unit_:
-            unit_ = 'dimensionless'
+        if self.with_pint_units:
+            unit_ = kwargs["unit"]
+            if not unit_:
+                unit_ = 'dimensionless'
+            dtype = f'pint[{unit_}]'
+        else:
+            dtype = 'float64'
 
         series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
-                           dtype=f'pint[{unit_}]')
+                           dtype=dtype)
 
         # test if df has sub-zero values
         df_sigma__dropna = series.where(series < 0).dropna()
-        if not df_sigma__dropna.pint.m.empty:
+
+        if self.with_pint_units:
+            _values = df_sigma__dropna.pint.m
+        else:
+            _values = df_sigma__dropna
+
+        if not _values.empty:
             logger.warning(f"Negative values for parameter {name} from {df_sigma__dropna.index[0][0]}")
 
         return series
@@ -345,12 +359,15 @@ class ConstantUncertaintyExponentialGrowthTimeSeriesGenerator(DistributionFuncti
     cagr: str
     ref_date: str
 
-    def __init__(self, cagr=None, times=None, size=None, index_names=None, ref_date=None, *args, **kwargs):
+    def __init__(self, cagr=None, times=None, size=None, index_names=None, ref_date=None, with_pint_units=False, *args,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.cagr = cagr if cagr else 0
 
         self.ref_date = ref_date if ref_date else None
-
+        self.with_pint_units = with_pint_units
+        if self.with_pint_units:
+            import pint
         self.times = times
         self.size = size
         iterables = [times, range(0, size)]
@@ -386,11 +403,15 @@ class ConstantUncertaintyExponentialGrowthTimeSeriesGenerator(DistributionFuncti
         # data_series._metadata = kwargs
         # data_series.index.rename(['time', 'samples'], inplace=True)
         #
-        if not kwargs["unit"]:
-            series = pd.Series(values, index=self._multi_index, dtype='pint[dimensionless]')
+        if self.with_pint_units:
+            if not kwargs["unit"]:
+                dtype = 'pint[dimensionless]'
+            else:
+                dtype = f'pint[{kwargs["unit"]}]'
         else:
-            series = pd.Series(values, index=self._multi_index, dtype=f'pint[{kwargs["unit"]}]')
+            dtype = 'float64'
 
+        series = pd.Series(values, index=self._multi_index, dtype=dtype)
         return series
 
 

@@ -30,20 +30,24 @@ install_requirements = [
     'pandas==0.24.2',
     'numpy',
     'python-dateutil',
-    # 'pint @        https://github.com/hgrecco/pint.git#egg=pint',
-    # 'pint @ https://github.com/hgrecco/pint/zipball/master',
-    'pint @        git+https://github.com/hgrecco/pint.git@f356379c15c1cb5d211c795872ac9e9284d2358f#egg=pint',
-    # 'pint-pandas @ https://github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
-    'pint-pandas @ git+https://github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
+
 ]
 
 extra_requirements = {
-    "test": ["pytest", "pytest-cov", "codecov", "coveralls", "nbval"]
+    "test": ["pytest", "pytest-cov", "codecov", "coveralls", "nbval"],
+    "units": [
+        # below non-pypi references break pypi package
+        # waiting for pint 0.12 release...
+        # 'pint @        git+https://github.com/hgrecco/pint.git@f356379c15c1cb5d211c795872ac9e9284d2358f#egg=pint',
+        # 'pint-pandas @ git+https://github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
+    ]
 }
 
 setup(
+    setup_requires=['pbr'],
+    pbr=True,
     name='eam-data-tools',
-    version='1.1.0',
+    version='1.2.1',
     license='Apache-2.0',
     description='Tool to read model data from a table',
     long_description='%s\n%s' % (
@@ -52,7 +56,7 @@ setup(
     ),
     author='Dan Schien',
     author_email='daniel.schien@bristol.ac.uk',
-    url='https://github.com/dschien/eam-table-data-reader',
+    url='https://github.com/dschien/eam-data-tools',
     packages=find_packages('src'),
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
@@ -77,9 +81,9 @@ setup(
         'Topic :: Utilities',
     ],
     project_urls={
-        'Documentation': 'https://eam-table-data-reader.readthedocs.io/',
-        'Changelog': 'https://eam-table-data-reader.readthedocs.io/en/latest/changelog.html',
-        'Issue Tracker': 'https://github.com/dschien/eam-table-data-reader/issues',
+        'Documentation': 'https://eam-data-tools.readthedocs.io/',
+        'Changelog': 'https://eam-data-tools.readthedocs.io/en/latest/changelog.html',
+        'Issue Tracker': 'https://github.com/dschien/eam-data-tools/issues',
     },
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',

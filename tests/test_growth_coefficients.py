@@ -7,6 +7,8 @@ from table_data_reader import Parameter
 
 import pint
 
+default_settings = {'with_pint_units': True}
+
 
 class MyTestCase(unittest.TestCase):
 
@@ -36,6 +38,7 @@ class MyTestCase(unittest.TestCase):
                        (datetime(2016, 1, 1), 5.76E-06), (datetime(2017, 1, 1), 4.61E-06)]
 
         settings = {
+            **default_settings,
             'use_time_series': True,
             'times': pd.date_range(date_values[0][0], '2017-01-01', freq='MS'),
             'sample_size': 1,
@@ -79,12 +82,11 @@ class MyTestCase(unittest.TestCase):
         p = Parameter('test', module_name='numpy.random', distribution_name='normal',
                       param_a=ref_value, param_b=ref_value / 10, cagr=1, ref_date=ref_date)
 
-        settings = {
-            'use_time_series': True,
-            'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
-            'sample_size': 2,
-            'sample_mean_value': True
-        }
+        settings = {**default_settings, 'use_time_series': True,
+                    'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
+                    'sample_size': 2,
+                    'sample_mean_value': True
+                    }
 
         a = p(settings)
         a = a.pint.m
@@ -105,12 +107,11 @@ class MyTestCase(unittest.TestCase):
         p = Parameter('test', module_name='numpy.random', distribution_name='normal',
                       param_a=ref_value, param_b=ref_value / 10, cagr=0, ref_date=ref_date)
 
-        settings = {
-            'use_time_series': True,
-            'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
-            'sample_size': 2,
-            'sample_mean_value': True
-        }
+        settings = {**default_settings, 'use_time_series': True,
+                    'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
+                    'sample_size': 2,
+                    'sample_mean_value': True
+                    }
 
         a = p(settings)
         a = a.pint.m
@@ -131,12 +132,11 @@ class MyTestCase(unittest.TestCase):
         p = Parameter('test', module_name='numpy.random', distribution_name='normal',
                       param_a=ref_value, param_b=ref_value / 10, cagr=0.5, ref_date=ref_date)
 
-        settings = {
-            'use_time_series': True,
-            'times': pd.date_range(datetime(2016, 1, 1), '2018-1-1', freq='MS'),
-            'sample_size': 2,
-            'sample_mean_value': True
-        }
+        settings = {**default_settings, 'use_time_series': True,
+                    'times': pd.date_range(datetime(2016, 1, 1), '2018-1-1', freq='MS'),
+                    'sample_size': 2,
+                    'sample_mean_value': True
+                    }
 
         a = p(settings)
         a = a.pint.m
@@ -157,12 +157,11 @@ class MyTestCase(unittest.TestCase):
         p = Parameter('test', module_name='numpy.random', distribution_name='normal',
                       param_a=ref_value, param_b=ref_value / 10, cagr=0, ref_date=ref_date)
 
-        settings = {
-            'use_time_series': True,
-            'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
-            'sample_size': 2,
-            'sample_mean_value': True
-        }
+        settings = {**default_settings, 'use_time_series': True,
+                    'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
+                    'sample_size': 2,
+                    'sample_mean_value': True
+                    }
 
         a = p(settings)
         a = a.pint.m
@@ -183,12 +182,12 @@ class MyTestCase(unittest.TestCase):
         p = Parameter('test', module_name='numpy.random', distribution_name='normal',
                       param_a=ref_value, param_b=ref_value / 10, cagr=0.1, ref_date=ref_date)
 
-        settings = {
-            'use_time_series': True,
-            'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
-            'sample_size': 2,
-            'sample_mean_value': True
-        }
+        settings = {**default_settings,
+                    'use_time_series': True,
+                    'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
+                    'sample_size': 2,
+                    'sample_mean_value': True
+                    }
 
         a = p(settings)
         a = a.pint.m
@@ -209,12 +208,11 @@ class MyTestCase(unittest.TestCase):
         p = Parameter('test', module_name='numpy.random', distribution_name='normal',
                       param_a=ref_value, param_b=ref_value / 10, cagr=.1, ref_date=ref_date)
 
-        settings = {
-            'use_time_series': True,
-            'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
-            'sample_size': 2,
-            'sample_mean_value': True
-        }
+        settings = {**default_settings, 'use_time_series': True,
+                    'times': pd.date_range(datetime(2016, 1, 1), '2016-12-31', freq='MS'),
+                    'sample_size': 2,
+                    'sample_mean_value': True
+                    }
 
         a = p(settings)
         a = a.pint.m
