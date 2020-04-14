@@ -83,7 +83,7 @@ Write code that references these variables and generates random distributions in
 <https://github.com/hgrecco/pint-pandas>`_ units.::
 
         repository = ParameterRepository()
-        ExcelParameterLoader(filename='./test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
+        TableParameterLoader(filename='./test_v2.xlsx', excel_handler='xlrd').load_into_repo(sheet_name='Sheet1',
                                                                                              repository=repository)
         p = repository.get_parameter('a')
 

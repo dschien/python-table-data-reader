@@ -627,7 +627,7 @@ class ParameterRepository(object):
             return self.parameter_sets[param].scenarios.keys()
 
 
-class ExcelHandler(object):
+class TableHandler(object):
     version: int
 
     def __init__(self, version=2):
@@ -638,7 +638,7 @@ class ExcelHandler(object):
         raise NotImplementedError()
 
 
-class OpenpyxlExcelHandler(ExcelHandler):
+class OpenpyxlTableHandler(TableHandler):
     def load_definitions(self, sheet_name, filename=None):
         definitions = []
 
@@ -661,7 +661,7 @@ class OpenpyxlExcelHandler(ExcelHandler):
         return definitions
 
 
-class Xlsx2CsvHandler(ExcelHandler):
+class Xlsx2CsvHandler(TableHandler):
     def load_definitions(self, sheet_name, filename=None):
         from xlsx2csv import Xlsx2csv
         data = Xlsx2csv(filename, inmemory=True).convert(None, sheetid=0)
@@ -685,7 +685,7 @@ class Xlsx2CsvHandler(ExcelHandler):
         return definitions
 
 
-class CSVHandler(ExcelHandler):
+class CSVHandler(TableHandler):
     def load_definitions(self, sheet_name, filename=None):
         reader = csv.DictReader(open(filename), delimiter=',')
 
@@ -740,7 +740,7 @@ class CSVHandler(ExcelHandler):
         return definitions
 
 
-class PandasCSVHandler(ExcelHandler):
+class PandasCSVHandler(TableHandler):
 
     def load_definitions(self, sheet_name, filename=None):
         self.version = 2
@@ -757,7 +757,7 @@ class PandasCSVHandler(ExcelHandler):
         return df.to_dict(orient='records')
 
 
-class XLRDExcelHandler(ExcelHandler):
+class XLRDTableHandler(TableHandler):
     version: int
 
     @staticmethod
@@ -767,6 +767,48 @@ class XLRDExcelHandler(ExcelHandler):
         sheet = wb.sheet_by_name(sheet_name)
         rows = list(sheet.get_rows())
         return len(rows)
+
+    def find_highest_id(self):
+        """
+        stub for id management
+        :return:
+        :rtype:
+        """
+        pass
+
+    def table_visitor(self, wb, _sheet_names, function):
+        """
+        stub for id management
+
+        :param wb:
+        :type wb:
+        :param _sheet_names:
+        :type _sheet_names:
+        :param function:
+        :type function:
+        :return:
+        :rtype:
+        """
+
+        for _sheet_name in _sheet_names:
+            if _sheet_name == 'metadata':
+                continue
+            sheet = wb.sheet_by_name(_sheet_name)
+            rows = list(sheet.get_rows())
+            header = [cell.value for cell in rows[0]]
+
+            if header[0] != 'variable':
+                continue
+
+            for i, row in enumerate(rows[1:]):
+                values = {}
+                for key, cell in zip(header, row):
+                    values[key] = cell.value
+                if not values['variable']:
+                    # logger.debug(f'ignoring row {i}: {row}')
+                    continue
+
+                function()
 
     def load_definitions(self, sheet_name, filename=None):
         import xlrd
@@ -838,7 +880,7 @@ class XLRDExcelHandler(ExcelHandler):
         return definitions
 
 
-class XLWingsExcelHandler(ExcelHandler):
+class XLWingsTableHandler(TableHandler):
     def load_definitions(self, sheet_name, filename=None):
         import xlwings as xw
         definitions = []
@@ -854,7 +896,7 @@ class XLWingsExcelHandler(ExcelHandler):
             if header[0] != 'variable':
                 continue
 
-            total_rows = XLRDExcelHandler.get_sheet_range_bounds(filename, _sheet_name)
+            total_rows = XLRDTableHandler.get_sheet_range_bounds(filename, _sheet_name)
             range = sheet.range((1, 1), (total_rows, len(header)))
             rows = range.rows
             for row in rows[1:]:
@@ -865,7 +907,7 @@ class XLWingsExcelHandler(ExcelHandler):
         return definitions
 
 
-class ExcelParameterLoader(object):
+class TableParameterLoader(object):
     definition_version: int
     """Utility to populate ParameterRepository from spreadsheets.
 
@@ -879,26 +921,26 @@ class ExcelParameterLoader(object):
 
        """
 
-    def __init__(self, filename, excel_handler='xlrd', version=2, **kwargs):
+    def __init__(self, filename, table_handler='xlrd', version=2, **kwargs):
         self.filename = filename
         self.definition_version = 2  # default - will be overwritten by handler
 
-        logger.info(f'Using {excel_handler} excel handler')
-        excel_handler_instance = None
-        if excel_handler == 'csv':
-            excel_handler_instance = CSVHandler(version)
-        if excel_handler == 'pandas':
-            excel_handler_instance = PandasCSVHandler(version)
-        if excel_handler == 'openpyxl':
-            excel_handler_instance = OpenpyxlExcelHandler()
-        if excel_handler == 'xlsx2csv':
-            excel_handler_instance = Xlsx2CsvHandler()
-        if excel_handler == 'xlwings':
-            excel_handler_instance = XLWingsExcelHandler()
-        if excel_handler == 'xlrd':
-            excel_handler_instance = XLRDExcelHandler()
+        logger.info(f'Using {table_handler} excel handler')
+        table_handler_instance = None
+        if table_handler == 'csv':
+            table_handler_instance = CSVHandler(version)
+        if table_handler == 'pandas':
+            table_handler_instance = PandasCSVHandler(version)
+        if table_handler == 'openpyxl':
+            table_handler_instance = OpenpyxlTableHandler()
+        if table_handler == 'xlsx2csv':
+            table_handler_instance = Xlsx2CsvHandler()
+        if table_handler == 'xlwings':
+            table_handler_instance = XLWingsTableHandler()
+        if table_handler == 'xlrd':
+            table_handler_instance = XLRDTableHandler()
 
-        self.excel_handler: ExcelHandler = excel_handler_instance
+        self.table_handler: TableHandler = table_handler_instance
 
     def load_parameter_definitions(self, sheet_name: str = None):
         """
@@ -923,8 +965,8 @@ class ExcelParameterLoader(object):
         :param sheet_name:
         :return: list of dicts with {header col name : cell value} pairs
         """
-        definitions = self.excel_handler.load_definitions(sheet_name, filename=self.filename)
-        self.definition_version = self.excel_handler.version
+        definitions = self.table_handler.load_definitions(sheet_name, filename=self.filename)
+        self.definition_version = self.table_handler.version
         return definitions
 
     def load_into_repo(self, repository: ParameterRepository = None, sheet_name: str = None):
