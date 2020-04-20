@@ -685,9 +685,21 @@ class Xlsx2CsvHandler(TableHandler):
         return definitions
 
 
+class DictReaderStrip(csv.DictReader):
+    @property
+    def fieldnames(self):
+        if self._fieldnames is None:
+            # Initialize self._fieldnames
+            # Note: DictReader is an old-style class, so can't use super()
+            csv.DictReader.fieldnames.fget(self)
+            if self._fieldnames is not None:
+                self._fieldnames = [name.strip() for name in self._fieldnames]
+        return self._fieldnames
+
+
 class CSVHandler(TableHandler):
     def load_definitions(self, sheet_name, filename=None):
-        reader = csv.DictReader(open(filename), delimiter=',')
+        reader = DictReaderStrip(open(filename), delimiter=',')
 
         definitions = []
 
@@ -695,7 +707,7 @@ class CSVHandler(TableHandler):
 
         for i, row in enumerate(reader):
 
-            values = row
+            values = {k: v.strip() for k, v in row.items()}
 
             if not values['variable']:
                 logger.debug(f'ignoring row {i}: {row}')
@@ -742,13 +754,19 @@ class CSVHandler(TableHandler):
 
 class PandasCSVHandler(TableHandler):
 
+    def strip(self, text):
+        try:
+            return text.strip()
+        except AttributeError:
+            return text
+
     def load_definitions(self, sheet_name, filename=None):
         self.version = 2
 
         import pandas as pd
         df = pd.read_csv(filename, usecols=range(15), index_col=False, parse_dates=['ref date'],
                          dtype={'initial_value_proportional_variation': 'float64'},
-                         dayfirst=True
+                         dayfirst=True,
                          # date_parser=lambda x: pd.datetime.strptime(x, '%d-%m-%Y')
                          )
         df = df.dropna(subset=['variable', 'ref value'])
