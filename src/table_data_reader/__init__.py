@@ -15,7 +15,6 @@ from dateutil import relativedelta as rdelta
 import logging
 from functools import partial
 
-from xlrd import xldate_as_tuple
 import calendar
 from scipy.interpolate import interp1d
 import json
@@ -250,6 +249,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         :return:
         """
+        print(self.kwargs)
         assert 'ref value' in self.kwargs
 
         # 1. Generate $\mu$
@@ -393,7 +393,8 @@ class ConstantUncertaintyExponentialGrowthTimeSeriesGenerator(DistributionFuncti
 
         a = growth_coefficients(start_date, end_date, ref_date, alpha, self.size)
 
-        values *= a.ravel()
+        x = a.ravel()
+        values = np.multiply(values,x)
 
         # df = pd.DataFrame(values)
         # df.columns = [kwargs['name']]
@@ -646,7 +647,7 @@ class OpenpyxlTableHandler(TableHandler):
         wb = load_workbook(filename=filename, data_only=True)
         _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
         for _sheet_name in _sheet_names:
-            sheet = wb.get_sheet_by_name(_sheet_name)
+            sheet = wb[_sheet_name]
             rows = list(sheet.rows)
             header = [cell.value for cell in rows[0]]
 
@@ -759,24 +760,77 @@ class PandasCSVHandler(TableHandler):
 
 class XLRDTableHandler(TableHandler):
     version: int
+    id_map = {}
+    highest_id = -1
 
     @staticmethod
     def get_sheet_range_bounds(filename, sheet_name):
-        import xlrd
-        wb = xlrd.open_workbook(filename)
-        sheet = wb.sheet_by_name(sheet_name)
-        rows = list(sheet.get_rows())
+        import openpyxl
+        wb = openpyxl.load_workbook(filename)
+        sheet = wb[sheet_name]
+        rows = list(sheet.iter_rows())
         return len(rows)
 
-    def find_highest_id(self):
+    def add_ids(self, ws, values, definitions, _definition_tracking, i):
         """
         stub for id management
         :return:
         :rtype:
         """
-        pass
+        name = values["variable"]
+        scenario = values['scenario'] if values['scenario'] else "n/a"
+        if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
+            if 'id' in values and values["id"] == None:
+                # If this is the first process and it has no ID, set it to 0
+                pid = self.highest_id + 1  # else set it to the highest existing ID plus 1
+                self.highest_id +=1
+                self.id_map[values['variable']][scenario] = pid
+                values["id"] = pid
+                definitions[i]["id"]=pid
+                c = ws.cell(row=i+2, column=19)
+                c.value = pid
+                logger.info("ID " + str(pid) + " given to process " + values['variable'])
+        return definitions
 
-    def table_visitor(self, wb, _sheet_names, function):
+    def ref_date_handling(self, ws, values, definitions, _definition_tracking, i):
+        if 'ref date' in values and values['ref date']:
+            if isinstance(values['ref date'], datetime.datetime):
+                # values['ref date'] = datetime.datetime(*xldate_as_tuple(values['ref date'], wb.datemode))
+                if values['ref date'].day != 1:
+                    logger.warning(f'ref date truncated to first of month for variable {values["variable"]}')
+                    values['ref date'] = values['ref date'].replace(day=1)
+            else:
+                raise Exception(
+                    f"{values['ref date']} for variable {values['variable']} is not a date - "
+                    f"check spreadsheet value is a valid day of a month")
+
+        logger.debug(f'values for {values["variable"]}: {values}')
+        definitions.append(values)
+        name = values['variable']
+        scenario = values['scenario'] if values['scenario'] else "n/a"
+        if 'id' in values and values["id"]!= None:
+            pid = values['id']
+            if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
+                # raises exception if the ID already exists
+                if pid in self.id_map.values():
+                    raise Exception("Duplicate ID for process " + values['variable'])
+                else:
+                    self.id_map[name]={}
+                    self.id_map[name][scenario] = pid
+                    if pid>self.highest_id:
+                        self.highest_id=pid
+        if scenario in _definition_tracking[values['variable']]:
+            logger.error(
+                f"Duplicate entry for parameter "
+                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {_sheet_name}")
+            raise ValueError(
+                f"Duplicate entry for parameter "
+                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {_sheet_name}")
+        else:
+            _definition_tracking[values['variable']][scenario] = 1
+        return definitions
+
+    def table_visitor(self, wb, _sheet_names, function, definitions, _definition_tracking):
         """
         stub for id management
 
@@ -793,8 +847,8 @@ class XLRDTableHandler(TableHandler):
         for _sheet_name in _sheet_names:
             if _sheet_name == 'metadata':
                 continue
-            sheet = wb.sheet_by_name(_sheet_name)
-            rows = list(sheet.get_rows())
+            sheet = wb[_sheet_name]
+            rows = list(sheet.iter_rows())
             header = [cell.value for cell in rows[0]]
 
             if header[0] != 'variable':
@@ -808,24 +862,24 @@ class XLRDTableHandler(TableHandler):
                     # logger.debug(f'ignoring row {i}: {row}')
                     continue
 
-                function()
+                definitions = function(sheet, values, definitions, _definition_tracking, i)
+        return definitions
 
     def load_definitions(self, sheet_name, filename=None):
-        import xlrd
-        wb = xlrd.open_workbook(filename)
-        sh = None
+        import openpyxl
+        wb = openpyxl.load_workbook(filename, data_only=True)
 
         definitions = []
 
         _definition_tracking = defaultdict(dict)
-
-        _sheet_names = [sheet_name] if sheet_name else [sh.name for sh in wb.sheets()]
-
+        _sheet_names = [sheet_name] if sheet_name else [sh.title for sh in wb.worksheets]
+        print(wb["metadata"])
         version = 1
 
         try:
-            sheet = wb.sheet_by_name('metadata')
-            rows = list(sheet.get_rows())
+            sheet = wb['metadata']
+            rows = list(sheet.iter_rows())
+            print("not errored yet")
             for row in rows:
                 if row[0].value == 'version':
                     version = row[1].value
@@ -833,50 +887,11 @@ class XLRDTableHandler(TableHandler):
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
 
-        for _sheet_name in _sheet_names:
-            if _sheet_name == 'metadata':
-                continue
-            sheet = wb.sheet_by_name(_sheet_name)
-            rows = list(sheet.get_rows())
-            header = [cell.value for cell in rows[0]]
-
-            if header[0] != 'variable':
-                continue
-
-            for i, row in enumerate(rows[1:]):
-                values = {}
-                for key, cell in zip(header, row):
-                    values[key] = cell.value
-
-                if not values['variable']:
-                    # logger.debug(f'ignoring row {i}: {row}')
-                    continue
-
-                if 'ref date' in values and values['ref date']:
-                    if isinstance(values['ref date'], float):
-                        values['ref date'] = datetime.datetime(*xldate_as_tuple(values['ref date'], wb.datemode))
-                        if values['ref date'].day != 1:
-                            logger.warning(f'ref date truncated to first of month for variable {values["variable"]}')
-                            values['ref date'] = values['ref date'].replace(day=1)
-                    else:
-                        raise Exception(
-                            f"{values['ref date']} for variable {values['variable']} is not a date - "
-                            f"check spreadsheet value is a valid day of a month")
-                logger.debug(f'values for {values["variable"]}: {values}')
-                definitions.append(values)
-                scenario = values['scenario'] if values['scenario'] else "n/a"
-
-                if scenario in _definition_tracking[values['variable']]:
-
-                    logger.error(
-                        f"Duplicate entry for parameter "
-                        f"with name <{values['variable']}> and <{scenario}> scenario in sheet {_sheet_name}")
-                    raise ValueError(
-                        f"Duplicate entry for parameter "
-                        f"with name <{values['variable']}> and <{scenario}> scenario in sheet {_sheet_name}")
-
-                else:
-                    _definition_tracking[values['variable']][scenario] = 1
+        func = self.ref_date_handling
+        definitions = self.table_visitor(wb, _sheet_names, func, definitions, _definition_tracking)
+        func=self.add_ids
+        definitions = self.table_visitor(wb, _sheet_names, func, definitions, _definition_tracking)
+        wb.save(filename)
         return definitions
 
 
