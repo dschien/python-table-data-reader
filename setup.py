@@ -30,11 +30,12 @@ install_requirements = [
     'pandas==0.24.2',
     'numpy',
     'python-dateutil',
-
 ]
 
 extra_requirements = {
     "test": ["pytest", "pytest-cov", "codecov", "coveralls", "nbval"],
+    # @todo - remove xlrd dependency
+    'excel': ['openpyxl', 'xlrd'],
     "units": [
         # below non-pypi references break pypi package
         # waiting for pint 0.12 release...
@@ -47,7 +48,7 @@ setup(
     setup_requires=['pbr'],
     pbr=True,
     name='eam-data-tools',
-    version='1.3.0',
+    version='1.3.1',
     license='Apache-2.0',
     description='Tool to read model data from a table',
     long_description='%s\n%s' % (
