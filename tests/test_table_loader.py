@@ -58,7 +58,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_exp(self):
         repository = ParameterRepository()
-        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='xlrd').load_into_repo(sheet_name='Sheet1',
+        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(sheet_name='Sheet1',
                                                                                                    repository=repository)
         p = repository.get_parameter('a')
 
@@ -72,7 +72,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_linear(self):
         repository = ParameterRepository()
-        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='xlrd').load_into_repo(sheet_name='Sheet1',
+        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(sheet_name='Sheet1',
                                                                                                    repository=repository)
         p = repository.get_parameter('b')
 
@@ -85,7 +85,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_mean(self):
         repository = ParameterRepository()
-        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='xlrd').load_into_repo(sheet_name='Sheet1',
+        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(sheet_name='Sheet1',
                                                                                                    repository=repository)
         p = repository.get_parameter('a')
 
