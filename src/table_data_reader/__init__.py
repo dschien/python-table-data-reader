@@ -634,35 +634,12 @@ class TableHandler(object):
         self.version = version
 
     @abstractmethod
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         raise NotImplementedError()
 
 
-class OpenpyxlTableHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
-        definitions = []
-
-        from openpyxl import load_workbook
-        wb = load_workbook(filename=filename, data_only=True)
-        _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
-        for _sheet_name in _sheet_names:
-            sheet = wb[_sheet_name]
-            rows = list(sheet.rows)
-            header = [cell.value for cell in rows[0]]
-
-            if header[0] != 'variable':
-                continue
-
-            for row in rows[1:]:
-                values = {}
-                for key, cell in zip(header, row):
-                    values[key] = cell.value
-                definitions.append(values)
-        return definitions
-
-
 class Xlsx2CsvHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         from xlsx2csv import Xlsx2csv
         data = Xlsx2csv(filename, inmemory=True).convert(None, sheetid=0)
 
@@ -698,7 +675,7 @@ class DictReaderStrip(csv.DictReader):
 
 
 class CSVHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         reader = DictReaderStrip(open(filename), delimiter=',')
 
         definitions = []
@@ -760,7 +737,7 @@ class PandasCSVHandler(TableHandler):
         except AttributeError:
             return text
 
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         self.version = 2
 
         import pandas as pd
@@ -774,12 +751,12 @@ class PandasCSVHandler(TableHandler):
 
         return df.to_dict(orient='records')
 
+
 class OpenpyxlTableHandler(TableHandler):
     version: int
-    id_map = {}
-    highest_id = -1
 
     def __init__(self):
+        self.highest_id = -1
         self.id_map = {}
 
     @staticmethod
@@ -853,21 +830,22 @@ class OpenpyxlTableHandler(TableHandler):
             _definition_tracking[values['variable']][scenario] = 1
         return definitions
 
-    def table_visitor(self, wb, _sheet_names, function, definitions, _definition_tracking, id_flag):
+    def table_visitor(self, wb=None, sheet_names=None, visitor_function=None, definitions=None,
+                      _definition_tracking=None):
         """
         stub for id management
 
         :param wb:
         :type wb:
-        :param _sheet_names:
-        :type _sheet_names:
-        :param function:
-        :type function:
+        :param sheet_names:
+        :type sheet_names:
+        :param visitor_function:
+        :type visitor_function:
         :return:
         :rtype:
         """
 
-        for _sheet_name in _sheet_names:
+        for _sheet_name in sheet_names:
             if _sheet_name == 'metadata':
                 continue
             sheet = wb[_sheet_name]
@@ -885,7 +863,7 @@ class OpenpyxlTableHandler(TableHandler):
                     # logger.debug(f'ignoring row {i}: {row}')
                     continue
 
-                definitions = function(sheet, values, definitions, _definition_tracking, i, id_flag, _sheet_name)
+                definitions = visitor_function(sheet, values, definitions, _definition_tracking, i, _sheet_name)
         return definitions
 
     def load_definitions(self, sheet_name, filename=None, id_flag=False):
@@ -908,17 +886,18 @@ class OpenpyxlTableHandler(TableHandler):
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
 
-        func = self.ref_date_handling
-        definitions = self.table_visitor(wb, _sheet_names, func, definitions, _definition_tracking, id_flag)
+        table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names, definitions=definitions,
+                                        _definition_tracking=_definition_tracking)
+
+        definitions = table_visitor_partial(visitor_function=self.ref_date_handling)
         if id_flag:
-            func = self.add_ids
-            definitions = self.table_visitor(wb, _sheet_names, func, definitions, _definition_tracking, id_flag)
+            definitions = table_visitor_partial(visitor_function=self.add_ids)
         wb.save(filename)
         return definitions
 
 
 class XLWingsTableHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         import xlwings as xw
         definitions = []
         wb = xw.Book(fullname=filename)
