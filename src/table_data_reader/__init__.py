@@ -16,8 +16,11 @@ import logging
 from functools import partial
 
 import calendar
+
+from openpyxl import Workbook
 from scipy.interpolate import interp1d
 import json
+from typing import Callable
 
 __author__ = 'schien'
 
@@ -755,7 +758,8 @@ class PandasCSVHandler(TableHandler):
 class OpenpyxlTableHandler(TableHandler):
     version: int
 
-    def __init__(self):
+    def __init__(self, version=2):
+        super().__init__(version=version)
         self.highest_id = -1
         self.id_map = {}
 
@@ -767,7 +771,8 @@ class OpenpyxlTableHandler(TableHandler):
         rows = list(sheet.iter_rows())
         return len(rows)
 
-    def add_ids(self, ws, values, definitions, _definition_tracking, i, id_flag, _sheet_name):
+    def add_ids(self, ws=None, values=None, definitions=None, definition_tracking=None, row_idx=None, id_flag=False,
+                sheet_name=None):
         """
         stub for id management
         :return:
@@ -784,13 +789,15 @@ class OpenpyxlTableHandler(TableHandler):
                     self.id_map[name] = {}
                 self.id_map[name][scenario] = pid
                 values["id"] = pid
-                definitions[i]["id"] = pid
-                c = ws.cell(row=i + 2, column=19)
+                definitions[row_idx]["id"] = pid
+                c = ws.cell(row=row_idx + 2, column=19)
                 c.value = pid
                 logger.info("ID " + str(pid) + " given to process " + values['variable'])
         return definitions
 
-    def ref_date_handling(self, ws, values, definitions, _definition_tracking, i, id_flag, _sheet_name):
+    def ref_date_handling(self, values=None, definitions=None, definition_tracking=None, sheet_name=None, id_flag=None,
+                          **kwargs):
+
         if 'ref date' in values and values['ref date']:
             if isinstance(values['ref date'], datetime.datetime):
                 # values['ref date'] = datetime.datetime(*xldate_as_tuple(values['ref date'], wb.datemode))
@@ -819,19 +826,20 @@ class OpenpyxlTableHandler(TableHandler):
                         self.id_map[name][scenario] = pid
                         if pid > self.highest_id:
                             self.highest_id = pid
-        if scenario in _definition_tracking[name]:
+        if scenario in definition_tracking[name]:
             logger.error(
                 f"Duplicate entry for parameter "
-                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {_sheet_name}")
+                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
             raise ValueError(
                 f"Duplicate entry for parameter "
-                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {_sheet_name}")
+                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
         else:
-            _definition_tracking[values['variable']][scenario] = 1
+            definition_tracking[values['variable']][scenario] = 1
         return definitions
 
-    def table_visitor(self, wb=None, sheet_names=None, visitor_function=None, definitions=None,
-                      _definition_tracking=None):
+    @staticmethod
+    def table_visitor(wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
+                      definitions=None, _definition_tracking=None, id_flag=False):
         """
         stub for id management
 
@@ -844,7 +852,8 @@ class OpenpyxlTableHandler(TableHandler):
         :return:
         :rtype:
         """
-
+        if not sheet_names:
+            sheet_names = wb.sheetnames
         for _sheet_name in sheet_names:
             if _sheet_name == 'metadata':
                 continue
@@ -863,10 +872,20 @@ class OpenpyxlTableHandler(TableHandler):
                     # logger.debug(f'ignoring row {i}: {row}')
                     continue
 
-                definitions = visitor_function(sheet, values, definitions, _definition_tracking, i, _sheet_name)
+                definitions = visitor_function(ws=sheet, values=values, definitions=definitions,
+                                               definition_tracking=_definition_tracking,
+                                               row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
+                                               header=header)
         return definitions
 
-    def load_definitions(self, sheet_name, filename=None, id_flag=False):
+    def load_definitions(self, sheet_name, filename:str =None, id_flag=False):
+        """
+        @todo - document that this not only loads definitions, but also writes the data file, if 'id' flag is True
+        :param sheet_name:
+        :param filename:
+        :param id_flag:
+        :return:
+        """
         import openpyxl
         wb = openpyxl.load_workbook(filename, data_only=True)
 
@@ -886,7 +905,8 @@ class OpenpyxlTableHandler(TableHandler):
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
 
-        table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names, definitions=definitions,
+        table_visitor_partial = partial(OpenpyxlTableHandler.table_visitor, wb=wb, sheet_names=_sheet_names,
+                                        definitions=definitions,
                                         _definition_tracking=_definition_tracking)
 
         definitions = table_visitor_partial(visitor_function=self.ref_date_handling)
