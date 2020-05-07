@@ -259,11 +259,12 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             raise Exception(f"Ref date not set for variable {kwargs['name']}")
 
         mu = self.generate_mu(end_date, ref_date, start_date)
-
+        mu2 = self.generate_mu(end_date, ref_date, start_date)
         # 3. Generate $\sigma$
         # Prepare array with growth values $\sigma$
         if self.sample_mean_value:
             sigma = np.zeros((len(self.times), self.size))
+            sigma2 = np.zeros((len(self.times), self.size))
         else:
 
             if self.kwargs['type'] == 'interp':
@@ -279,6 +280,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             variability_ = intial_value * self.kwargs['initial_value_proportional_variation']
             logger.debug(f'sampling random distribution with parameters -{variability_}, 0, {variability_}')
             sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
+            sigma2 = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
         # logger.debug(ref_date.strftime("%b %d %Y"))
 
         # 4. Prepare growth array for $\alpha_{sigma}$
@@ -286,7 +288,10 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                                           end_date,
                                           ref_date,
                                           self.kwargs['ef_growth_factor'], 1)
-
+        alpha_sigma2= growth_coefficients(start_date,
+                                          end_date,
+                                          ref_date,
+                                          self.kwargs['ef_growth_factor'], 1)
         # 5. Prepare DataFrame
         iterables = [self.times, range(self.size)]
         index_names = ['time', 'samples']
@@ -310,9 +315,15 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         else:
             dtype = 'float64'
 
+        date_range = pd.date_range(start_date, end_date, freq='MS')
+        countries = ['UK', 'FR']
+        iterables = [countries, self.times, range(self.size)]
+        index_names = ['country', 'time', 'samples']
+        country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
+        series2 = pd.Series((np.arange(len(date_range)* self.size * len(countries))).ravel(), index=country_multi_index,  dtype=dtype)
+
         series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
                            dtype=dtype)
-
         # test if df has sub-zero values
         df_sigma__dropna = series.where(series < 0).dropna()
 
@@ -324,7 +335,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         if not _values.empty:
             logger.warning(f"Negative values for parameter {name} from {df_sigma__dropna.index[0][0]}")
 
-        return series
+        return series2
 
     def generate_mu(self, end_date, ref_date, start_date):
 
