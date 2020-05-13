@@ -761,7 +761,8 @@ class OpenpyxlTableHandler(TableHandler):
     def __init__(self, version=2):
         super().__init__(version=version)
         self.highest_id = -1
-        self.id_map = {}
+        self.id_map = defaultdict(lambda: defaultdict(dict))
+        self.id_column = None
 
     @staticmethod
     def get_sheet_range_bounds(filename, sheet_name):
@@ -771,31 +772,28 @@ class OpenpyxlTableHandler(TableHandler):
         rows = list(sheet.iter_rows())
         return len(rows)
 
-    def add_ids(self, ws=None, values=None, definitions=None, definition_tracking=None, row_idx=None, id_flag=False,
-                sheet_name=None):
+    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, id_flag=False,
+                sheet_name=None, **kwargs):
         """
-        stub for id management
+        using the id map, assign ids to those variables that have not got an id yet
         :return:
         :rtype:
         """
         name = values["variable"]
-        scenario = values['scenario'] if values['scenario'] else "n/a"
+        scenario = values['scenario'] if values['scenario'] else "default"
         if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
-            if 'id' in values and values["id"] == None:
-                # If this is the first process and it has no ID, set it to 0
-                pid = self.highest_id + 1  # else set it to the highest existing ID plus 1
-                self.highest_id += 1
-                if name not in self.id_map.keys():
-                    self.id_map[name] = {}
-                self.id_map[name][scenario] = pid
-                values["id"] = pid
-                definitions[row_idx]["id"] = pid
-                c = ws.cell(row=row_idx + 2, column=19)
-                c.value = pid
-                logger.info("ID " + str(pid) + " given to process " + values['variable'])
-        return definitions
+            # If this is the first process and it has no ID, set it to 0
+            pid = self.highest_id + 1  # else set it to the highest existing ID plus 1
+            self.highest_id += 1
+            self.id_map[name][scenario] = pid
+            values["id"] = pid
+            logger.debug(f'{name} {scenario}: {values}')
+            definitions[name][scenario]["id"] = pid
+            c = ws.cell(row=row_idx + 2, column=self.id_column)
+            c.value = pid
+            logger.info("ID " + str(pid) + " given to process " + values['variable'])
 
-    def ref_date_handling(self, values=None, definitions=None, definition_tracking=None, sheet_name=None, id_flag=None,
+    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
                           **kwargs):
 
         if 'ref date' in values and values['ref date']:
@@ -810,23 +808,21 @@ class OpenpyxlTableHandler(TableHandler):
                     f"check spreadsheet value is a valid day of a month")
 
         logger.debug(f'values for {values["variable"]}: {values}')
-        definitions.append(values)
         name = values['variable']
-        scenario = values['scenario'] if values['scenario'] else "n/a"
+        scenario = values['scenario'] if values['scenario'] else "default"
+        # store id's in a map to identify largest existing id
         if id_flag:
-            if 'id' in values and values["id"] != None:
+            if 'id' in values.keys() and (values["id"] or values["id"] == 0):
                 pid = values['id']
                 if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
                     # raises exception if the ID already exists
                     if (any(pid in d.values() for d in self.id_map.values())):
                         raise Exception("Duplicate ID variable " + name)
                     else:
-                        if name not in self.id_map.keys():
-                            self.id_map[name] = {}
                         self.id_map[name][scenario] = pid
                         if pid > self.highest_id:
                             self.highest_id = pid
-        if scenario in definition_tracking[name]:
+        if scenario in definitions[name].keys():
             logger.error(
                 f"Duplicate entry for parameter "
                 f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
@@ -834,15 +830,14 @@ class OpenpyxlTableHandler(TableHandler):
                 f"Duplicate entry for parameter "
                 f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
         else:
-            definition_tracking[values['variable']][scenario] = 1
-        return definitions
+            definitions[name][scenario] = values
 
-    @staticmethod
-    def table_visitor(wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
-                      definitions=None, _definition_tracking=None, id_flag=False):
+    def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
+                      definitions=None, id_flag=False):
         """
         stub for id management
 
+        :param definitions:
         :param wb:
         :type wb:
         :param sheet_names:
@@ -860,25 +855,26 @@ class OpenpyxlTableHandler(TableHandler):
             sheet = wb[_sheet_name]
             rows = list(sheet.iter_rows())
             header = [cell.value for cell in rows[0]]
-
             if header[0] != 'variable':
                 continue
+            if id_flag:
+                # get the id column number
+                self.id_column = header.index('id') + 1
 
             for i, row in enumerate(rows[1:]):
                 values = {}
                 for key, cell in zip(header, row):
                     values[key] = cell.value
                 if not values['variable']:
-                    # logger.debug(f'ignoring row {i}: {row}')
+                    logger.debug(f'ignoring row {i}: {row}')
                     continue
 
-                definitions = visitor_function(ws=sheet, values=values, definitions=definitions,
-                                               definition_tracking=_definition_tracking,
-                                               row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
-                                               header=header)
+                visitor_function(ws=sheet, values=values, definitions=definitions,
+                                 row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
+                                 header=header)
         return definitions
 
-    def load_definitions(self, sheet_name, filename:str =None, id_flag=False):
+    def load_definitions(self, sheet_name, filename: str = None, id_flag=False):
         """
         @todo - document that this not only loads definitions, but also writes the data file, if 'id' flag is True
         :param sheet_name:
@@ -889,9 +885,7 @@ class OpenpyxlTableHandler(TableHandler):
         import openpyxl
         wb = openpyxl.load_workbook(filename, data_only=True)
 
-        definitions = []
-
-        _definition_tracking = defaultdict(dict)
+        definitions = defaultdict(lambda: defaultdict(dict))
         _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
         version = 1
 
@@ -905,15 +899,22 @@ class OpenpyxlTableHandler(TableHandler):
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
 
-        table_visitor_partial = partial(OpenpyxlTableHandler.table_visitor, wb=wb, sheet_names=_sheet_names,
-                                        definitions=definitions,
-                                        _definition_tracking=_definition_tracking)
+        table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
+                                        definitions=definitions, id_flag=id_flag)
 
-        definitions = table_visitor_partial(visitor_function=self.ref_date_handling)
+        table_visitor_partial(visitor_function=self.ref_date_handling)
         if id_flag:
-            definitions = table_visitor_partial(visitor_function=self.add_ids)
-        wb.save(filename)
-        return definitions
+            table_visitor_partial(visitor_function=self.add_ids)
+            wb.save(filename)
+
+        res = []
+        for var_set in definitions.values():
+            for scenario_var in var_set.values():
+                res.append(scenario_var)
+
+        return res
+        # return [definitions_ .values()]
+        # return definitions
 
 
 class XLWingsTableHandler(TableHandler):
