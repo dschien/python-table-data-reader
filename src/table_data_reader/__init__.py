@@ -16,8 +16,11 @@ import logging
 from functools import partial
 
 import calendar
+
+from openpyxl import Workbook
 from scipy.interpolate import interp1d
 import json
+from typing import Callable
 
 __author__ = 'schien'
 
@@ -338,7 +341,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         if not _values.empty:
             logger.warning(f"Negative values for parameter {name} from {df_sigma__dropna.index[0][0]}")
 
-        return series2
+        return series
 
     def generate_mu(self, end_date, ref_date, start_date):
 
@@ -648,35 +651,12 @@ class TableHandler(object):
         self.version = version
 
     @abstractmethod
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         raise NotImplementedError()
 
 
-class OpenpyxlTableHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
-        definitions = []
-
-        from openpyxl import load_workbook
-        wb = load_workbook(filename=filename, data_only=True)
-        _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
-        for _sheet_name in _sheet_names:
-            sheet = wb[_sheet_name]
-            rows = list(sheet.rows)
-            header = [cell.value for cell in rows[0]]
-
-            if header[0] != 'variable':
-                continue
-
-            for row in rows[1:]:
-                values = {}
-                for key, cell in zip(header, row):
-                    values[key] = cell.value
-                definitions.append(values)
-        return definitions
-
-
 class Xlsx2CsvHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         from xlsx2csv import Xlsx2csv
         data = Xlsx2csv(filename, inmemory=True).convert(None, sheetid=0)
 
@@ -712,7 +692,7 @@ class DictReaderStrip(csv.DictReader):
 
 
 class CSVHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         reader = DictReaderStrip(open(filename), delimiter=',')
 
         definitions = []
@@ -774,7 +754,7 @@ class PandasCSVHandler(TableHandler):
         except AttributeError:
             return text
 
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         self.version = 2
 
         import pandas as pd
@@ -788,13 +768,15 @@ class PandasCSVHandler(TableHandler):
 
         return df.to_dict(orient='records')
 
+
 class OpenpyxlTableHandler(TableHandler):
     version: int
-    id_map = {}
-    highest_id = -1
 
-    def __init__(self):
-        self.id_map = {}
+    def __init__(self, version=2):
+        super().__init__(version=version)
+        self.highest_id = -1
+        self.id_map = defaultdict(lambda: defaultdict(dict))
+        self.id_column = None
 
     @staticmethod
     def get_sheet_range_bounds(filename, sheet_name):
@@ -804,30 +786,30 @@ class OpenpyxlTableHandler(TableHandler):
         rows = list(sheet.iter_rows())
         return len(rows)
 
-    def add_ids(self, ws, values, definitions, _definition_tracking, i, id_flag, _sheet_name):
+    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, id_flag=False,
+                sheet_name=None, **kwargs):
         """
-        stub for id management
+        using the id map, assign ids to those variables that have not got an id yet
         :return:
         :rtype:
         """
         name = values["variable"]
-        scenario = values['scenario'] if values['scenario'] else "n/a"
+        scenario = values['scenario'] if values['scenario'] else "default"
         if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
-            if 'id' in values and values["id"] == None:
-                # If this is the first process and it has no ID, set it to 0
-                pid = self.highest_id + 1  # else set it to the highest existing ID plus 1
-                self.highest_id += 1
-                if name not in self.id_map.keys():
-                    self.id_map[name] = {}
-                self.id_map[name][scenario] = pid
-                values["id"] = pid
-                definitions[i]["id"] = pid
-                c = ws.cell(row=i + 2, column=19)
-                c.value = pid
-                logger.info("ID " + str(pid) + " given to process " + values['variable'])
-        return definitions
+            # If this is the first process and it has no ID, set it to 0
+            pid = self.highest_id + 1  # else set it to the highest existing ID plus 1
+            self.highest_id += 1
+            self.id_map[name][scenario] = pid
+            values["id"] = pid
+            logger.debug(f'{name} {scenario}: {values}')
+            definitions[name][scenario]["id"] = pid
+            c = ws.cell(row=row_idx + 2, column=self.id_column)
+            c.value = pid
+            logger.info("ID " + str(pid) + " given to process " + values['variable'])
 
-    def ref_date_handling(self, ws, values, definitions, _definition_tracking, i, id_flag, _sheet_name):
+    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
+                          **kwargs):
+
         if 'ref date' in values and values['ref date']:
             if isinstance(values['ref date'], datetime.datetime):
                 # values['ref date'] = datetime.datetime(*xldate_as_tuple(values['ref date'], wb.datemode))
@@ -840,75 +822,84 @@ class OpenpyxlTableHandler(TableHandler):
                     f"check spreadsheet value is a valid day of a month")
 
         logger.debug(f'values for {values["variable"]}: {values}')
-        definitions.append(values)
         name = values['variable']
-        scenario = values['scenario'] if values['scenario'] else "n/a"
+        scenario = values['scenario'] if values['scenario'] else "default"
+        # store id's in a map to identify largest existing id
         if id_flag:
-            if 'id' in values and values["id"] != None:
+            if 'id' in values.keys() and (values["id"] or values["id"] == 0):
                 pid = values['id']
                 if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
                     # raises exception if the ID already exists
                     if (any(pid in d.values() for d in self.id_map.values())):
                         raise Exception("Duplicate ID variable " + name)
                     else:
-                        if name not in self.id_map.keys():
-                            self.id_map[name] = {}
                         self.id_map[name][scenario] = pid
                         if pid > self.highest_id:
                             self.highest_id = pid
-        if scenario in _definition_tracking[name]:
+        if scenario in definitions[name].keys():
             logger.error(
                 f"Duplicate entry for parameter "
-                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {_sheet_name}")
+                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
             raise ValueError(
                 f"Duplicate entry for parameter "
-                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {_sheet_name}")
+                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
         else:
-            _definition_tracking[values['variable']][scenario] = 1
-        return definitions
+            definitions[name][scenario] = values
 
-    def table_visitor(self, wb, _sheet_names, function, definitions, _definition_tracking, id_flag):
+    def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
+                      definitions=None, id_flag=False):
         """
         stub for id management
 
+        :param definitions:
         :param wb:
         :type wb:
-        :param _sheet_names:
-        :type _sheet_names:
-        :param function:
-        :type function:
+        :param sheet_names:
+        :type sheet_names:
+        :param visitor_function:
+        :type visitor_function:
         :return:
         :rtype:
         """
-
-        for _sheet_name in _sheet_names:
+        if not sheet_names:
+            sheet_names = wb.sheetnames
+        for _sheet_name in sheet_names:
             if _sheet_name == 'metadata':
                 continue
             sheet = wb[_sheet_name]
             rows = list(sheet.iter_rows())
             header = [cell.value for cell in rows[0]]
-
             if header[0] != 'variable':
                 continue
+            if id_flag:
+                # get the id column number
+                self.id_column = header.index('id') + 1
 
             for i, row in enumerate(rows[1:]):
                 values = {}
                 for key, cell in zip(header, row):
                     values[key] = cell.value
                 if not values['variable']:
-                    # logger.debug(f'ignoring row {i}: {row}')
+                    logger.debug(f'ignoring row {i}: {row}')
                     continue
 
-                definitions = function(sheet, values, definitions, _definition_tracking, i, id_flag, _sheet_name)
+                visitor_function(ws=sheet, values=values, definitions=definitions,
+                                 row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
+                                 header=header)
         return definitions
 
-    def load_definitions(self, sheet_name, filename=None, id_flag=False):
+    def load_definitions(self, sheet_name, filename: str = None, id_flag=False):
+        """
+        @todo - document that this not only loads definitions, but also writes the data file, if 'id' flag is True
+        :param sheet_name:
+        :param filename:
+        :param id_flag:
+        :return:
+        """
         import openpyxl
         wb = openpyxl.load_workbook(filename, data_only=True)
 
-        definitions = []
-
-        _definition_tracking = defaultdict(dict)
+        definitions = defaultdict(lambda: defaultdict(dict))
         _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
         version = 1
 
@@ -922,19 +913,25 @@ class OpenpyxlTableHandler(TableHandler):
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
 
-        func = self.ref_date_handling
-        definitions = self.table_visitor(wb, _sheet_names, func, definitions, _definition_tracking, id_flag)
-        if id_flag:
-            func = self.add_ids
-            definitions = self.table_visitor(wb, _sheet_names, func, definitions, _definition_tracking, id_flag)
-        wb.save(filename)
-        print("definitions are")
-        print(definitions)
-        return definitions
+        table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
+                                        definitions=definitions, id_flag=id_flag)
 
+        table_visitor_partial(visitor_function=self.ref_date_handling)
+        if id_flag:
+            table_visitor_partial(visitor_function=self.add_ids)
+            wb.save(filename)
+
+        res = []
+        for var_set in definitions.values():
+            for scenario_var in var_set.values():
+                res.append(scenario_var)
+
+        return res
+        # return [definitions_ .values()]
+        # return definitions
 
 class XLWingsTableHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag= False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False):
         import xlwings as xw
         definitions = []
         wb = xw.Book(fullname=filename)
