@@ -202,7 +202,8 @@ class Parameter(object):
                            'with_pint_units': settings.get('with_pint_units', False)
                            }
             common_args.update(**self.kwargs)
-
+            print("common args are")
+            print(common_args)
             if settings.get('use_time_series', False):
                 if self.version == 2:
                     generator = GrowthTimeSeriesGenerator(**common_args, times=settings['times'])
@@ -249,8 +250,10 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         :return:
         """
+        print("sel.kwargs are")
+        print(self.kwargs)
         assert 'ref value' in self.kwargs
-
+        print(self.kwargs)
         # 1. Generate $\mu$
         start_date = self.times[0].to_pydatetime()
         end_date = self.times[-1].to_pydatetime()
@@ -925,6 +928,8 @@ class OpenpyxlTableHandler(TableHandler):
             func = self.add_ids
             definitions = self.table_visitor(wb, _sheet_names, func, definitions, _definition_tracking, id_flag)
         wb.save(filename)
+        print("definitions are")
+        print(definitions)
         return definitions
 
 
@@ -1044,6 +1049,8 @@ class TableParameterLoader(object):
 
             name_ = parameter_kwargs_def['name']
             del parameter_kwargs_def['name']
+            print("parameter kwargs are")
+            print(parameter_kwargs_def)
             p = Parameter(name_, version=self.definition_version, **parameter_kwargs_def)
             params.append(p)
         return params
