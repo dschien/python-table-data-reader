@@ -205,8 +205,6 @@ class Parameter(object):
                            'with_pint_units': settings.get('with_pint_units', False)
                            }
             common_args.update(**self.kwargs)
-            print("common args are")
-            print(common_args)
             if settings.get('use_time_series', False):
                 if self.version == 2:
                     generator = GrowthTimeSeriesGenerator(**common_args, times=settings['times'])
@@ -253,10 +251,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         :return:
         """
-        print("sel.kwargs are")
-        print(self.kwargs)
         assert 'ref value' in self.kwargs
-        print(self.kwargs)
         # 1. Generate $\mu$
         start_date = self.times[0].to_pydatetime()
         end_date = self.times[-1].to_pydatetime()
@@ -807,7 +802,7 @@ class OpenpyxlTableHandler(TableHandler):
             c.value = pid
             logger.info("ID " + str(pid) + " given to process " + values['variable'])
 
-    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
+    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None, countries_flag=True, wb=None,
                           **kwargs):
 
         if 'ref date' in values and values['ref date']:
@@ -836,6 +831,7 @@ class OpenpyxlTableHandler(TableHandler):
                         self.id_map[name][scenario] = pid
                         if pid > self.highest_id:
                             self.highest_id = pid
+
         if scenario in definitions[name].keys():
             logger.error(
                 f"Duplicate entry for parameter "
@@ -844,7 +840,30 @@ class OpenpyxlTableHandler(TableHandler):
                 f"Duplicate entry for parameter "
                 f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
         else:
-            definitions[name][scenario] = values
+            # if the countries flag is not on (argument passed in, currently defaults to on) or there is no sheet by this parameter name just read from params
+            if not countries_flag or name not in wb.sheetnames:
+                definitions[name][scenario] = values
+            else:
+                country_values = {}
+                rows = list(wb[name].iter_rows())
+                header = [cell.value for cell in rows[0]]
+
+                for i, row in enumerate(rows[1:]):
+                    temp_values={}
+                    for key, cell in zip(header, row):
+                        temp_values[key] = cell.value #reads values from the variable's sheet
+                    temp_scenario=temp_values['scenario'] if temp_values['scenario'] else "default"
+                    if temp_scenario==scenario:
+                        col = temp_values["key"]
+                        temp_values.pop("key")
+                        temp_values.pop("scenario")
+                        country_values[col] = {}
+                        country_values[col]=temp_values
+                        properties=["ref value", "mean growth", "initial_value_proportional_variation", "variability growth"]
+                        for p in properties: #checks the above propertis have been parsed, if not it takes them from the params sheet
+                            if p not in country_values[col].keys():
+                                country_values[col][p]=values[p]
+                definitions[name][scenario]=country_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
                       definitions=None, id_flag=False):
@@ -874,7 +893,6 @@ class OpenpyxlTableHandler(TableHandler):
             if id_flag:
                 # get the id column number
                 self.id_column = header.index('id') + 1
-
             for i, row in enumerate(rows[1:]):
                 values = {}
                 for key, cell in zip(header, row):
@@ -885,7 +903,7 @@ class OpenpyxlTableHandler(TableHandler):
 
                 visitor_function(ws=sheet, values=values, definitions=definitions,
                                  row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
-                                 header=header)
+                                 header=header, wb=wb)
         return definitions
 
     def load_definitions(self, sheet_name, filename: str = None, id_flag=False):
@@ -920,12 +938,10 @@ class OpenpyxlTableHandler(TableHandler):
         if id_flag:
             table_visitor_partial(visitor_function=self.add_ids)
             wb.save(filename)
-
         res = []
         for var_set in definitions.values():
             for scenario_var in var_set.values():
                 res.append(scenario_var)
-
         return res
         # return [definitions_ .values()]
         # return definitions
@@ -1046,8 +1062,6 @@ class TableParameterLoader(object):
 
             name_ = parameter_kwargs_def['name']
             del parameter_kwargs_def['name']
-            print("parameter kwargs are")
-            print(parameter_kwargs_def)
             p = Parameter(name_, version=self.definition_version, **parameter_kwargs_def)
             params.append(p)
         return params
