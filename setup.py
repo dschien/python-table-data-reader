@@ -25,9 +25,12 @@ def read(*names, **kwargs):
 
 
 install_requirements = [
+    'openpyxl',
     'scipy',
     'xlrd',
     'pandas==0.24.2',
+    'pint',
+    'pint-pandas-fork'
     'numpy',
     'python-dateutil',
 ]
