@@ -30,7 +30,7 @@ install_requirements = [
     'xlrd',
     'pandas==0.24.2',
     'pint',
-    'pint-pandas-fork'
+    'pint-pandas-fork',
     'numpy',
     'python-dateutil',
 ]
@@ -51,7 +51,7 @@ setup(
     setup_requires=['pbr'],
     pbr=True,
     name='eam-data-tools',
-    version='1.4.2',
+    version='1.4.4',
     license='Apache-2.0',
     description='Tool to read model data from a table',
     long_description='%s\n%s' % (
