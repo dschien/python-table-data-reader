@@ -51,7 +51,7 @@ setup(
     setup_requires=['pbr'],
     pbr=True,
     name='eam-data-tools',
-    version='1.4.4',
+    version='1.5.0',
     license='Apache-2.0',
     description='Tool to read model data from a table',
     long_description='%s\n%s' % (
