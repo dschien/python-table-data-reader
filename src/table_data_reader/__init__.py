@@ -162,8 +162,8 @@ class Parameter(object):
     def __init__(self, name, tags=None, source_scenarios_string: str = None, unit: str = None,
                  comment: str = None, source: str = None, version=None,
                  **kwargs):
-        # The source definition of scenarios. A comma-separated list
         self.version = version
+        # The source definition of scenarios. A comma-separated list
         self.source = source
         self.comment = comment
 
@@ -679,7 +679,8 @@ class DictReaderStrip(csv.DictReader):
 
 class CSVHandler(TableHandler):
     def load_definitions(self, sheet_name, filename=None, id_flag=False):
-        reader = DictReaderStrip(open(filename), delimiter=',')
+
+        reader = DictReaderStrip(open(filename, encoding='utf-8-sig'), delimiter=',')
 
         definitions = []
 
@@ -692,12 +693,25 @@ class CSVHandler(TableHandler):
             if not values['variable']:
                 logger.debug(f'ignoring row {i}: {row}')
                 continue
-            for key in ['ref value', 'initial_value_proportional_variation', 'mean growth', 'variability growth']:
+            number_columns = []
+            if self.version == 2:
+                number_columns = ['ref value', 'initial_value_proportional_variation', 'mean growth',
+                                  'variability growth']
+
+            if self.version == 1:
+                number_columns = ['param 1',
+                                  'param 2',
+                                  'param 3',
+                                  'CAGR']
+            for key in number_columns:
                 try:
-                    new_val = float(values[key])
-                    values[key] = new_val
+                    if key in values:
+                        # guard against empty strings
+                        new_val = float(values.get(key, 0) or 0)
+                        values[key] = new_val
                 except:
-                    if values['type'] == 'interp':
+                    if 'type' in values and values['type'] == 'interp':
+                        # this is a json array ... @todo can we have more validation on these strings?
                         continue
                     else:
                         raise Exception(
@@ -960,7 +974,7 @@ class TableParameterLoader(object):
 
     def __init__(self, filename, table_handler='openpyxl', version=2, **kwargs):
         self.filename = filename
-        self.definition_version = 2  # default - will be overwritten by handler
+        self.definition_version = version  # default - will be overwritten by handler
 
         logger.info(f'Using {table_handler} excel handler')
         table_handler_instance = None
