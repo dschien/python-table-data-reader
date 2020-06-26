@@ -317,7 +317,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             dtype = 'float64'
 
         date_range = pd.date_range(start_date, end_date, freq='MS')
-        countries = ['UK', 'FR']
+        countries = ['UK', 'DE']
         iterables = [countries, self.times, range(self.size)]
         index_names = ['country', 'time', 'samples']
         country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
@@ -336,7 +336,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         if not _values.empty:
             logger.warning(f"Negative values for parameter {name} from {df_sigma__dropna.index[0][0]}")
 
-        return series
+        return series2
 
     def generate_mu(self, end_date, ref_date, start_date):
 
