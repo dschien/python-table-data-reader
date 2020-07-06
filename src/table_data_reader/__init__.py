@@ -245,6 +245,24 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         self._multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
         assert type(times.freq) == pd.tseries.offsets.MonthBegin, 'Time index must have monthly frequency'
 
+    def generate_sigmas(self, country=None):
+        if self.kwargs['type'] == 'interp':
+
+            def get_date(record):
+                return datetime.datetime.strptime(record[0], "%Y-%m-%d")
+
+            ref_value= self.kwargs['ref value'][country] if country else self.kwargs['ref value']
+            ref_value_ = sorted(json.loads(ref_value.strip()).items(), key=get_date)
+            intial_value = ref_value_[0][1]
+        else:
+            intial_value = float(self.kwargs['ref value'][country]) if country else float(self.kwargs['ref value'])
+
+        initial_value_proportional_variation = self.kwargs['initial_value_proportional_variation'][country] if country else self.kwargs['initial_value_proportional_variation']
+        variability_ = intial_value * initial_value_proportional_variation
+        logger.debug(f'sampling random distribution with parameters -{variability_}, 0, {variability_}')
+        sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
+        return sigma
+
     def generate_values(self, *args, **kwargs):
         """
         Instantiate a random variable and apply annual growth factors.
@@ -252,47 +270,47 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         :return:
         """
         assert 'ref value' in self.kwargs
+        countries=["UK", "DE"]
         # 1. Generate $\mu$
         start_date = self.times[0].to_pydatetime()
         end_date = self.times[-1].to_pydatetime()
         ref_date = self.ref_date
         if not ref_date:
-            raise Exception(f"Ref date not set for variable {kwargs['name']}")
+           raise Exception(f"Ref date not set for variable {kwargs['name']}")
 
-        mu = self.generate_mu(end_date, ref_date, start_date)
-        mu2 = self.generate_mu(end_date, ref_date, start_date)
+        mu={}
+        if isinstance(ref_date, dict):
+            for c in countries:
+                mu[c] = self.generate_mu(end_date, ref_date[c], start_date,country=c)
+        else:
+            mu = self.generate_mu(end_date, ref_date, start_date)
         # 3. Generate $\sigma$
         # Prepare array with growth values $\sigma$
         if self.sample_mean_value:
             sigma = np.zeros((len(self.times), self.size))
-            sigma2 = np.zeros((len(self.times), self.size))
         else:
-
-            if self.kwargs['type'] == 'interp':
-
-                def get_date(record):
-                    return datetime.datetime.strptime(record[0], "%Y-%m-%d")
-
-                ref_value_ = sorted(json.loads(self.kwargs['ref value'].strip()).items(), key=get_date)
-                intial_value = ref_value_[0][1]
+            if isinstance(ref_date, dict):
+                sigma={}
+                for c in countries:
+                    sigma[c] = self.generate_sigmas(country=c)
             else:
-                intial_value = float(self.kwargs['ref value'])
-
-            variability_ = intial_value * self.kwargs['initial_value_proportional_variation']
-            logger.debug(f'sampling random distribution with parameters -{variability_}, 0, {variability_}')
-            sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
-            sigma2 = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
+                sigma=self.generate_sigmas()
         # logger.debug(ref_date.strftime("%b %d %Y"))
 
         # 4. Prepare growth array for $\alpha_{sigma}$
-        alpha_sigma = growth_coefficients(start_date,
+        if isinstance(ref_date, dict):
+            alpha_sigma = {}
+            for c in countries:
+                growth_factor=self.kwargs['ef_growth_factor'][c]
+                alpha_sigma[c]  = growth_coefficients(start_date,
                                           end_date,
-                                          ref_date,
-                                          self.kwargs['ef_growth_factor'], 1)
-        alpha_sigma2= growth_coefficients(start_date,
-                                          end_date,
-                                          ref_date,
-                                          self.kwargs['ef_growth_factor'], 1)
+                                          ref_date[c],
+                                          growth_factor, 1)
+        else:
+            alpha_sigma = growth_coefficients(start_date,
+                                            end_date,
+                                            ref_date,
+                                            self.kwargs['ef_growth_factor'], 1)
         # 5. Prepare DataFrame
         iterables = [self.times, range(self.size)]
         index_names = ['time', 'samples']
@@ -321,11 +339,27 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         iterables = [countries, self.times, range(self.size)]
         index_names = ['country', 'time', 'samples']
         country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
-        series2 = pd.Series((np.arange(len(date_range)* self.size * len(countries))).ravel(), index=country_multi_index,  dtype=dtype)
-
-        series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
+        # series2 = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
+        #                     index=country_multi_index, dtype=dtype)
+        if isinstance(ref_date, dict):
+            if not self.sample_mean_value:
+                alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
+            else:
+                alpha_sigma.update((x, y * sigma) for x, y in alpha_sigma.items())
+            dicts = [alpha_sigma, mu]
+            temp = {}
+            for k in alpha_sigma.keys():
+                temp[k] = sum(list(d[k] for d in dicts))
+            # reform = {(key): values for key, values in temp.items() }
+            l=np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
+            series = pd.Series(l, index=country_multi_index,
                            dtype=dtype)
+        else:
+            test=((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel()
+            series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
+                               dtype=dtype)
         # test if df has sub-zero values
+        series.where(series < 0)
         df_sigma__dropna = series.where(series < 0).dropna()
 
         if self.with_pint_units:
@@ -336,17 +370,18 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         if not _values.empty:
             logger.warning(f"Negative values for parameter {name} from {df_sigma__dropna.index[0][0]}")
 
-        return series2
+        return series
 
-    def generate_mu(self, end_date, ref_date, start_date):
-
+    def generate_mu(self, end_date, ref_date, start_date,country= None):
         if self.kwargs['type'] == 'exp':
-            mu_bar = np.full(len(self.times), float(self.kwargs['ref value']))
+            ref_value=self.kwargs['ref value'][country] if country else self.kwargs['ref value']
+            mu_bar = np.full(len(self.times), float(ref_value))
             # 2. Apply Growth to Mean Values $\alpha_{mu}$
+            growth_factor = self.kwargs['growth_factor'][country] if country else self.kwargs['growth_factor']
             alpha_mu = growth_coefficients(start_date,
                                            end_date,
                                            ref_date,
-                                           self.kwargs['growth_factor'], 1)
+                                           growth_factor, 1)
             mu = mu_bar * alpha_mu.ravel()
             mu = mu.reshape(len(self.times), 1)
             return mu
@@ -362,7 +397,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                 f = interp1d(arr1, arr2, kind=kind, fill_value='extrapolate')
                 return f([toTimestamp(date_val) for date_val in date_range])
 
-            ref_value_ = json.loads(self.kwargs['ref value'].strip())
+            ref_value_ = json.loads(self.kwargs['ref value'][country].strip()) if country else json.loads(self.kwargs['ref value'].strip())
             return interpolate(ref_value_, self.times, self.kwargs['param'])
 
 
@@ -802,7 +837,8 @@ class OpenpyxlTableHandler(TableHandler):
             c.value = pid
             logger.info("ID " + str(pid) + " given to process " + values['variable'])
 
-    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None, countries_flag=True, wb=None,
+    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
+                          countries_flag=True, wb=None,
                           **kwargs):
 
         if 'ref date' in values and values['ref date']:
@@ -844,26 +880,30 @@ class OpenpyxlTableHandler(TableHandler):
             if not countries_flag or name not in wb.sheetnames:
                 definitions[name][scenario] = values
             else:
+                print("hi")
+                keys = list(values.keys())
                 country_values = {}
+                set_values=["variable", "scenario","type","param", "id", "unit"]
+                for s in set_values:
+                    keys.remove(s)
+                    country_values[s]=values[s]
+                for k in keys:
+                    country_values[k] = {}
                 rows = list(wb[name].iter_rows())
                 header = [cell.value for cell in rows[0]]
-
                 for i, row in enumerate(rows[1:]):
-                    temp_values={}
+                    temp_values = {}
                     for key, cell in zip(header, row):
-                        temp_values[key] = cell.value #reads values from the variable's sheet
-                    temp_scenario=temp_values['scenario'] if temp_values['scenario'] else "default"
-                    if temp_scenario==scenario:
-                        col = temp_values["key"]
-                        temp_values.pop("key")
-                        temp_values.pop("scenario")
-                        country_values[col] = {}
-                        country_values[col]=temp_values
-                        properties=["ref value", "mean growth", "initial_value_proportional_variation", "variability growth"]
-                        for p in properties: #checks the above propertis have been parsed, if not it takes them from the params sheet
-                            if p not in country_values[col].keys():
-                                country_values[col][p]=values[p]
+                        temp_values[key] = cell.value  # reads values from the variable's sheet
+                    temp_scenario = temp_values['scenario'] if temp_values['scenario'] else "default"
+                    if temp_scenario == scenario:
+                        for k in keys:
+                            if k in header and temp_values[k] is not None:
+                                country_values[k][temp_values["region"]] = temp_values[k]
+                            else:
+                                country_values[k][temp_values["region"]] = values[k]
                 definitions[name][scenario]=country_values
+
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
                       definitions=None, id_flag=False):
@@ -941,10 +981,12 @@ class OpenpyxlTableHandler(TableHandler):
         res = []
         for var_set in definitions.values():
             for scenario_var in var_set.values():
+                # print(scenario_var)
                 res.append(scenario_var)
         return res
         # return [definitions_ .values()]
         # return definitions
+
 
 class XLWingsTableHandler(TableHandler):
     def load_definitions(self, sheet_name, filename=None, id_flag=False):
@@ -1047,9 +1089,9 @@ class TableParameterLoader(object):
         params = []
 
         param_name_map = param_name_maps[int(self.definition_version)]
-
+        countries = ["UK", "DE"]
         for _def in parameter_definitions:
-
+            print(_def)
             # substitute names from the headers with the kwargs names in the Parameter and Distributions classes
             # e.g. 'variable' -> 'name', 'module' -> 'module_name', etc
             parameter_kwargs_def = {}
@@ -1059,7 +1101,16 @@ class TableParameterLoader(object):
                         parameter_kwargs_def[param_name_map[k]] = v
                     else:
                         parameter_kwargs_def[k] = v
-
+                elif k in countries:
+                    parameter_kwargs_def[k] = {}
+                    for l, w in _def[k].items():
+                        if l in param_name_map:
+                            if param_name_map[l]:
+                                parameter_kwargs_def[k][param_name_map[l]] = w
+                            else:
+                                parameter_kwargs_def[k][l] = w
+            print("parameter kwargs def is")
+            print(parameter_kwargs_def)
             name_ = parameter_kwargs_def['name']
             del parameter_kwargs_def['name']
             p = Parameter(name_, version=self.definition_version, **parameter_kwargs_def)
