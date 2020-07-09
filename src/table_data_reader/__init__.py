@@ -251,13 +251,14 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             def get_date(record):
                 return datetime.datetime.strptime(record[0], "%Y-%m-%d")
 
-            ref_value= self.kwargs['ref value'][country] if country else self.kwargs['ref value']
+            ref_value = self.kwargs['ref value'][country] if country else self.kwargs['ref value']
             ref_value_ = sorted(json.loads(ref_value.strip()).items(), key=get_date)
             intial_value = ref_value_[0][1]
         else:
             intial_value = float(self.kwargs['ref value'][country]) if country else float(self.kwargs['ref value'])
 
-        initial_value_proportional_variation = self.kwargs['initial_value_proportional_variation'][country] if country else self.kwargs['initial_value_proportional_variation']
+        initial_value_proportional_variation = self.kwargs['initial_value_proportional_variation'][
+            country] if country else self.kwargs['initial_value_proportional_variation']
         variability_ = intial_value * initial_value_proportional_variation
         logger.debug(f'sampling random distribution with parameters -{variability_}, 0, {variability_}')
         sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
@@ -270,18 +271,18 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         :return:
         """
         assert 'ref value' in self.kwargs
-        countries=["UK", "DE"]
+        countries = ["UK", "DE"]
         # 1. Generate $\mu$
         start_date = self.times[0].to_pydatetime()
         end_date = self.times[-1].to_pydatetime()
         ref_date = self.ref_date
         if not ref_date:
-           raise Exception(f"Ref date not set for variable {kwargs['name']}")
+            raise Exception(f"Ref date not set for variable {kwargs['name']}")
 
-        mu={}
+        mu = {}
         if isinstance(ref_date, dict):
             for c in countries:
-                mu[c] = self.generate_mu(end_date, ref_date[c], start_date,country=c)
+                mu[c] = self.generate_mu(end_date, ref_date[c], start_date, country=c)
         else:
             mu = self.generate_mu(end_date, ref_date, start_date)
         # 3. Generate $\sigma$
@@ -290,27 +291,27 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             sigma = np.zeros((len(self.times), self.size))
         else:
             if isinstance(ref_date, dict):
-                sigma={}
+                sigma = {}
                 for c in countries:
                     sigma[c] = self.generate_sigmas(country=c)
             else:
-                sigma=self.generate_sigmas()
+                sigma = self.generate_sigmas()
         # logger.debug(ref_date.strftime("%b %d %Y"))
 
         # 4. Prepare growth array for $\alpha_{sigma}$
         if isinstance(ref_date, dict):
             alpha_sigma = {}
             for c in countries:
-                growth_factor=self.kwargs['ef_growth_factor'][c]
-                alpha_sigma[c]  = growth_coefficients(start_date,
-                                          end_date,
-                                          ref_date[c],
-                                          growth_factor, 1)
+                growth_factor = self.kwargs['ef_growth_factor'][c]
+                alpha_sigma[c] = growth_coefficients(start_date,
+                                                     end_date,
+                                                     ref_date[c],
+                                                     growth_factor, 1)
         else:
             alpha_sigma = growth_coefficients(start_date,
-                                            end_date,
-                                            ref_date,
-                                            self.kwargs['ef_growth_factor'], 1)
+                                              end_date,
+                                              ref_date,
+                                              self.kwargs['ef_growth_factor'], 1)
         # 5. Prepare DataFrame
         iterables = [self.times, range(self.size)]
         index_names = ['time', 'samples']
@@ -339,25 +340,24 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         iterables = [countries, self.times, range(self.size)]
         index_names = ['country', 'time', 'samples']
         country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
-        # series2 = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
+        # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
         #                     index=country_multi_index, dtype=dtype)
-        if isinstance(ref_date, dict):
-            if not self.sample_mean_value:
-                alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
-            else:
-                alpha_sigma.update((x, y * sigma) for x, y in alpha_sigma.items())
-            dicts = [alpha_sigma, mu]
-            temp = {}
-            for k in alpha_sigma.keys():
-                temp[k] = sum(list(d[k] for d in dicts))
-            # reform = {(key): values for key, values in temp.items() }
-            l=np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
-            series = pd.Series(l, index=country_multi_index,
+        # if isinstance(ref_date, dict):
+        #     if not self.sample_mean_value:
+        #         alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
+        #     else:
+        #         alpha_sigma.update((x, y * sigma) for x, y in alpha_sigma.items())
+        #     dicts = [alpha_sigma, mu]
+        #     temp = {}
+        #     for k in alpha_sigma.keys():
+        #         temp[k] = sum(list(d[k] for d in dicts))
+        #     # reform = {(key): values for key, values in temp.items() }
+        #     l=np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
+        #     series = pd.Series(l, index=country_multi_index,
+        #                    dtype=dtype)
+        # else:
+        series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
                            dtype=dtype)
-        else:
-            test=((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel()
-            series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
-                               dtype=dtype)
         # test if df has sub-zero values
         series.where(series < 0)
         df_sigma__dropna = series.where(series < 0).dropna()
@@ -372,9 +372,9 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         return series
 
-    def generate_mu(self, end_date, ref_date, start_date,country= None):
+    def generate_mu(self, end_date, ref_date, start_date, country=None):
         if self.kwargs['type'] == 'exp':
-            ref_value=self.kwargs['ref value'][country] if country else self.kwargs['ref value']
+            ref_value = self.kwargs['ref value'][country] if country else self.kwargs['ref value']
             mu_bar = np.full(len(self.times), float(ref_value))
             # 2. Apply Growth to Mean Values $\alpha_{mu}$
             growth_factor = self.kwargs['growth_factor'][country] if country else self.kwargs['growth_factor']
@@ -397,7 +397,8 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                 f = interp1d(arr1, arr2, kind=kind, fill_value='extrapolate')
                 return f([toTimestamp(date_val) for date_val in date_range])
 
-            ref_value_ = json.loads(self.kwargs['ref value'][country].strip()) if country else json.loads(self.kwargs['ref value'].strip())
+            ref_value_ = json.loads(self.kwargs['ref value'][country].strip()) if country else json.loads(
+                self.kwargs['ref value'].strip())
             return interpolate(ref_value_, self.times, self.kwargs['param'])
 
 
@@ -816,29 +817,64 @@ class OpenpyxlTableHandler(TableHandler):
         rows = list(sheet.iter_rows())
         return len(rows)
 
-    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, id_flag=False,
+    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, id_flag=False, countries_flag=False, wb=None,
                 sheet_name=None, **kwargs):
         """
         using the id map, assign ids to those variables that have not got an id yet
         :return:
         :rtype:
         """
+        countries = ["UK", "DE"]
         name = values["variable"]
         scenario = values['scenario'] if values['scenario'] else "default"
-        if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
-            # If this is the first process and it has no ID, set it to 0
-            pid = self.highest_id + 1  # else set it to the highest existing ID plus 1
-            self.highest_id += 1
-            self.id_map[name][scenario] = pid
-            values["id"] = pid
-            logger.debug(f'{name} {scenario}: {values}')
-            definitions[name][scenario]["id"] = pid
-            c = ws.cell(row=row_idx + 2, column=self.id_column)
-            c.value = pid
-            logger.info("ID " + str(pid) + " given to process " + values['variable'])
+        if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (
+            countries_flag and not all(c in self.id_map[name][scenario].keys() for c in countries)):
+            if not countries_flag:
+                pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
+                self.highest_id += 1
+                self.id_map[name][scenario] = pid
+                values["id"] = pid
+                logger.debug(f'{name} {scenario}: {values}')
+                definitions[name][scenario]["id"] = pid
+                c = ws.cell(row=row_idx + 2, column=self.id_column)
+                c.value = pid
+                logger.info("ID " + str(pid) + " given to process " + name + "in scenario" + scenario)
+            else:
+                self.id_map[name][scenario] = {}
+                values["id"] = {}
+                definitions[name][scenario]["id"] = {}
+                sheet = wb[name]
+                rows = list(sheet.iter_rows())
+                header = [cell.value for cell in rows[0]]
+                for c in countries:
+                    pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
+                    self.highest_id += 1
+                    self.id_map[name][scenario][c] = pid
+                    values["id"][c] = pid
+                    logger.debug(f'{name} {scenario} {c}: {values}')
+                    definitions[name][scenario]["id"][c] = pid
+                    r=-1
+                    for i, row in enumerate(rows[1:]):
+                        flag= True
+                        for key, cell in zip(header, row):
+                            if key == "region":
+                                if cell.value != c:
+                                    flag = False
+                            if key == "scenario":
+                                if cell.value != scenario and (cell.value=="" and scenario == "default"):
+                                    flag = False
+                        if flag==True:
+                            r = i
+                            break
+                    if r == -1:
+                        raise Exception("Row for variable " + name + ", scenario " + scenario + ", country " + c + " not found")
+                    cell = sheet.cell(row=r + 2, column=header.index('id') + 1)
+                    cell.value = pid
+                    logger.info(
+                        "ID " + str(pid) + " given to process " + name + "in scenario " + scenario + "for country" + c)
 
     def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
-                          countries_flag=True, wb=None,
+                          countries_flag=False, wb=None,
                           **kwargs):
 
         if 'ref date' in values and values['ref date']:
@@ -859,7 +895,7 @@ class OpenpyxlTableHandler(TableHandler):
         if id_flag:
             if 'id' in values.keys() and (values["id"] or values["id"] == 0):
                 pid = values['id']
-                if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
+                if (name not in self.id_map.keys() or scenario not in self.id_map[name].keys()) and name not in wb.sheetnames:
                     # raises exception if the ID already exists
                     if (any(pid in d.values() for d in self.id_map.values())):
                         raise Exception("Duplicate ID variable " + name)
@@ -880,13 +916,12 @@ class OpenpyxlTableHandler(TableHandler):
             if not countries_flag or name not in wb.sheetnames:
                 definitions[name][scenario] = values
             else:
-                print("hi")
                 keys = list(values.keys())
                 country_values = {}
-                set_values=["variable", "scenario","type","param", "id", "unit"]
+                set_values = ["variable", "scenario", "type", "param", "unit"]
                 for s in set_values:
                     keys.remove(s)
-                    country_values[s]=values[s]
+                    country_values[s] = values[s]
                 for k in keys:
                     country_values[k] = {}
                 rows = list(wb[name].iter_rows())
@@ -902,8 +937,7 @@ class OpenpyxlTableHandler(TableHandler):
                                 country_values[k][temp_values["region"]] = temp_values[k]
                             else:
                                 country_values[k][temp_values["region"]] = values[k]
-                definitions[name][scenario]=country_values
-
+                definitions[name][scenario] = country_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
                       definitions=None, id_flag=False):
@@ -940,10 +974,13 @@ class OpenpyxlTableHandler(TableHandler):
                 if not values['variable']:
                     logger.debug(f'ignoring row {i}: {row}')
                     continue
+                countries_flag=False
+                if values['variable'] in wb.sheetnames:
+                    countries_flag=True
 
                 visitor_function(ws=sheet, values=values, definitions=definitions,
                                  row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
-                                 header=header, wb=wb)
+                                 header=header, wb=wb, countries_flag= countries_flag)
         return definitions
 
     def load_definitions(self, sheet_name, filename: str = None, id_flag=False):
@@ -978,6 +1015,17 @@ class OpenpyxlTableHandler(TableHandler):
         if id_flag:
             table_visitor_partial(visitor_function=self.add_ids)
             wb.save(filename)
+
+        countries = []
+        for name in definitions.keys():
+            for scenario in definitions[name].keys():
+                for parameter in definitions[name][scenario].keys():
+                    if isinstance(definitions[name][scenario][parameter], dict):
+                        countries.append(list(definitions[name][scenario][parameter].keys()))
+                        break
+        assert len(set(
+            tuple(i) for i in countries)) == 1  # asserts all variables that have country data have the same countries
+
         res = []
         for var_set in definitions.values():
             for scenario_var in var_set.values():
@@ -1091,7 +1139,6 @@ class TableParameterLoader(object):
         param_name_map = param_name_maps[int(self.definition_version)]
         countries = ["UK", "DE"]
         for _def in parameter_definitions:
-            print(_def)
             # substitute names from the headers with the kwargs names in the Parameter and Distributions classes
             # e.g. 'variable' -> 'name', 'module' -> 'module_name', etc
             parameter_kwargs_def = {}
@@ -1109,8 +1156,6 @@ class TableParameterLoader(object):
                                 parameter_kwargs_def[k][param_name_map[l]] = w
                             else:
                                 parameter_kwargs_def[k][l] = w
-            print("parameter kwargs def is")
-            print(parameter_kwargs_def)
             name_ = parameter_kwargs_def['name']
             del parameter_kwargs_def['name']
             p = Parameter(name_, version=self.definition_version, **parameter_kwargs_def)
