@@ -340,23 +340,22 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         iterables = [countries, self.times, range(self.size)]
         index_names = ['country', 'time', 'samples']
         country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
-        # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
-        #                     index=country_multi_index, dtype=dtype)
-        # if isinstance(ref_date, dict):
-        #     if not self.sample_mean_value:
-        #         alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
-        #     else:
-        #         alpha_sigma.update((x, y * sigma) for x, y in alpha_sigma.items())
-        #     dicts = [alpha_sigma, mu]
-        #     temp = {}
-        #     for k in alpha_sigma.keys():
-        #         temp[k] = sum(list(d[k] for d in dicts))
-        #     # reform = {(key): values for key, values in temp.items() }
-        #     l=np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
-        #     series = pd.Series(l, index=country_multi_index,
-        #                    dtype=dtype)
-        # else:
-        series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
+        series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
+                            index=country_multi_index, dtype=dtype)
+        if isinstance(ref_date, dict):
+            if not self.sample_mean_value:
+                alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
+            else:
+                alpha_sigma.update((x, y * sigma) for x, y in alpha_sigma.items())
+            dicts = [alpha_sigma, mu]
+            temp = {}
+            for k in alpha_sigma.keys():
+                temp[k] = [x+y for x,y in zip(list(dicts[0][k]), list(dicts[1][k]))]
+            l=np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
+            series = pd.Series(l, index=country_multi_index,
+                           dtype=dtype)
+        else:
+            series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
                            dtype=dtype)
         # test if df has sub-zero values
         series.where(series < 0)
