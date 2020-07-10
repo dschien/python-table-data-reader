@@ -340,8 +340,8 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         iterables = [countries, self.times, range(self.size)]
         index_names = ['country', 'time', 'samples']
         country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
-        series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
-                            index=country_multi_index, dtype=dtype)
+        # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
+        #                     index=country_multi_index, dtype=dtype)
         if isinstance(ref_date, dict):
             if not self.sample_mean_value:
                 alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
@@ -1023,7 +1023,7 @@ class OpenpyxlTableHandler(TableHandler):
                         countries.append(list(definitions[name][scenario][parameter].keys()))
                         break
         assert len(set(
-            tuple(i) for i in countries)) == 1  # asserts all variables that have country data have the same countries
+            tuple(i) for i in countries)) <= 1  # asserts all variables that have country data have the same countries
 
         res = []
         for var_set in definitions.values():
