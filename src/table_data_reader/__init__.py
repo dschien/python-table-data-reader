@@ -214,7 +214,7 @@ class Parameter(object):
             else:
                 generator = DistributionFunctionGenerator(**common_args)
 
-            self.cache = generator.generate_values(*args, **kwargs)
+            self.cache = generator.generate_values(countries=settings['countries'] ,*args, **kwargs)
         return self.cache
 
     def add_usage(self, process_name, variable_name):
@@ -264,14 +264,13 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
         return sigma
 
-    def generate_values(self, *args, **kwargs):
+    def generate_values(self, countries=[],*args, **kwargs):
         """
         Instantiate a random variable and apply annual growth factors.
 
         :return:
         """
         assert 'ref value' in self.kwargs
-        countries = ["UK", "DE"]
         # 1. Generate $\mu$
         start_date = self.times[0].to_pydatetime()
         end_date = self.times[-1].to_pydatetime()
@@ -336,7 +335,6 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             dtype = 'float64'
 
         date_range = pd.date_range(start_date, end_date, freq='MS')
-        countries = ['UK', 'DE']
         iterables = [countries, self.times, range(self.size)]
         index_names = ['country', 'time', 'samples']
         country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
@@ -817,18 +815,18 @@ class OpenpyxlTableHandler(TableHandler):
         return len(rows)
 
     def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, id_flag=False, countries_flag=False, wb=None,
-                sheet_name=None, **kwargs):
+                sheet_name=None, countries=[], **kwargs):
         """
         using the id map, assign ids to those variables that have not got an id yet
         :return:
         :rtype:
         """
-        countries = ["UK", "DE"]
+
         name = values["variable"]
         scenario = values['scenario'] if values['scenario'] else "default"
         if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (
-            countries_flag and not all(c in self.id_map[name][scenario].keys() for c in countries)):
-            if not countries_flag:
+            len(countries) and not all(c in self.id_map[name][scenario].keys() for c in countries)):
+            if not len(countries):
                 pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
                 self.highest_id += 1
                 self.id_map[name][scenario] = pid
@@ -939,7 +937,7 @@ class OpenpyxlTableHandler(TableHandler):
                 definitions[name][scenario] = country_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
-                      definitions=None, id_flag=False):
+                      definitions=None, id_flag=False, countries=[]):
         """
         stub for id management
 
@@ -973,16 +971,13 @@ class OpenpyxlTableHandler(TableHandler):
                 if not values['variable']:
                     logger.debug(f'ignoring row {i}: {row}')
                     continue
-                countries_flag=False
-                if values['variable'] in wb.sheetnames:
-                    countries_flag=True
 
                 visitor_function(ws=sheet, values=values, definitions=definitions,
                                  row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
-                                 header=header, wb=wb, countries_flag= countries_flag)
+                                 header=header, wb=wb, countries= countries)
         return definitions
 
-    def load_definitions(self, sheet_name, filename: str = None, id_flag=False):
+    def load_definitions(self, sheet_name, filename: str = None, id_flag=False, countries=[]):
         """
         @todo - document that this not only loads definitions, but also writes the data file, if 'id' flag is True
         :param sheet_name:
@@ -1008,22 +1003,23 @@ class OpenpyxlTableHandler(TableHandler):
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
 
         table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
-                                        definitions=definitions, id_flag=id_flag)
+                                        definitions=definitions, id_flag=id_flag, countries=countries)
 
         table_visitor_partial(visitor_function=self.ref_date_handling)
         if id_flag:
             table_visitor_partial(visitor_function=self.add_ids)
             wb.save(filename)
 
-        countries = []
+        cs = []
         for name in definitions.keys():
             for scenario in definitions[name].keys():
                 for parameter in definitions[name][scenario].keys():
                     if isinstance(definitions[name][scenario][parameter], dict):
-                        countries.append(list(definitions[name][scenario][parameter].keys()))
+                        cs.append(list(definitions[name][scenario][parameter].keys()))
                         break
-        assert len(set(
-            tuple(i) for i in countries)) <= 1  # asserts all variables that have country data have the same countries
+        countryset = set(tuple(i) for i in cs)
+        assert tuple(countries) in countryset
+        assert len(countryset) <= 1  # asserts all variables that have country data have the same countries
 
         res = []
         for var_set in definitions.values():
@@ -1094,7 +1090,7 @@ class TableParameterLoader(object):
             table_handler_instance = XLWingsTableHandler()
         self.table_handler: TableHandler = table_handler_instance
 
-    def load_parameter_definitions(self, sheet_name: str = None, id_flag=False):
+    def load_parameter_definitions(self, sheet_name: str = None, id_flag=False, countries=[]):
         """
         Load variable text from rows in excel file.
         If no spreadsheet arg is given, all spreadsheets are loaded.
@@ -1117,26 +1113,25 @@ class TableParameterLoader(object):
         :param sheet_name:
         :return: list of dicts with {header col name : cell value} pairs
         """
-        definitions = self.table_handler.load_definitions(sheet_name, filename=self.filename, id_flag=id_flag)
+        definitions = self.table_handler.load_definitions(sheet_name, filename=self.filename, id_flag=id_flag, countries=countries)
         self.definition_version = self.table_handler.version
         return definitions
 
-    def load_into_repo(self, repository: ParameterRepository = None, sheet_name: str = None, id_flag=False):
+    def load_into_repo(self, repository: ParameterRepository = None, sheet_name: str = None, id_flag=False, countries=[]):
         """
         Create a Repo from an excel file.
         :param repository: the repository to load into
         :param sheet_name:
         :return:
         """
-        repository.add_all(self.load_parameters(sheet_name, id_flag=id_flag))
+        repository.add_all(self.load_parameters(sheet_name, id_flag=id_flag, countries=countries))
 
-    def load_parameters(self, sheet_name, id_flag=False):
+    def load_parameters(self, sheet_name, id_flag=False, countries=[]):
 
-        parameter_definitions = self.load_parameter_definitions(sheet_name=sheet_name, id_flag=id_flag)
+        parameter_definitions = self.load_parameter_definitions(sheet_name=sheet_name, id_flag=id_flag, countries=countries)
         params = []
 
         param_name_map = param_name_maps[int(self.definition_version)]
-        countries = ["UK", "DE"]
         for _def in parameter_definitions:
             # substitute names from the headers with the kwargs names in the Parameter and Distributions classes
             # e.g. 'variable' -> 'name', 'module' -> 'module_name', etc
