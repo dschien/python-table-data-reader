@@ -691,7 +691,7 @@ class CSVHandler(TableHandler):
             values = {k: v.strip() for k, v in row.items()}
 
             if not values['variable']:
-                logger.debug(f'ignoring row {i}: {row}')
+                logger.debug(f'ignoring row {i}: {row[0].value}')
                 continue
             number_columns = []
             if self.version == 2:
@@ -880,7 +880,7 @@ class OpenpyxlTableHandler(TableHandler):
                 for key, cell in zip(header, row):
                     values[key] = cell.value
                 if not values['variable']:
-                    logger.debug(f'ignoring row {i}: {row}')
+                    logger.debug(f'ignoring row {i}: {row[0].value}')
                     continue
 
                 visitor_function(ws=sheet, values=values, definitions=definitions,
