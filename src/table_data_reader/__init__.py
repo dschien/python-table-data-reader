@@ -283,7 +283,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         mu = {}
         if country_flag:
             for c in countries:
-                mu[c] = self.generate_mu(end_date, ref_date[c], start_date, country=c)
+                mu[c] = self.generate_mu(end_date, ref_date, start_date, country=c)
         else:
             mu = self.generate_mu(end_date, ref_date, start_date)
         # 3. Generate $\sigma$
@@ -306,7 +306,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                 growth_factor = self.kwargs['ef_growth_factor'][c]
                 alpha_sigma[c] = growth_coefficients(start_date,
                                                      end_date,
-                                                     ref_date[c],
+                                                     ref_date,
                                                      growth_factor, 1)
         else:
             alpha_sigma = growth_coefficients(start_date,
@@ -936,6 +936,9 @@ class OpenpyxlTableHandler(TableHandler):
                                 country_values[k][temp_values["region"]] = temp_values[k]
                             else:
                                 country_values[k][temp_values["region"]] = values[k]
+                refdates=set(country_values['ref date'].values())
+                assert len(refdates) == 1
+                country_values['ref date']=refdates.pop()
                 definitions[name][scenario] = country_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
