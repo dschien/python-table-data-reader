@@ -26,8 +26,8 @@ class TestVariableIDs(unittest.TestCase):
         handler = OpenpyxlTableHandler()
         handler.load_definitions("params", filename="tests/data/existing_ids.xlsx", id_flag=True)
         diff = get_diff_then_make_files_equal("tests/data/existing_ids.xlsx", "tests/data/existing_ids_copy.xlsx")
-        assert handler.id_map == {'power_latop': {'n/a': 0, "S1": 1},
-                                  'energy_intensity_network': {'n/a': 2}}
+        assert handler.id_map == {'power_latop': {'default': 0, "S1": 1},
+                                  'energy_intensity_network': {'default': 2}}
         assert diff == {}
 
     def test_some_existing_ids(self):
@@ -35,8 +35,8 @@ class TestVariableIDs(unittest.TestCase):
         handler.load_definitions("params", filename="tests/data/some_existing_ids.xlsx", id_flag=True)
         diff = get_diff_then_make_files_equal("tests/data/some_existing_ids.xlsx",
                                               "tests/data/some_existing_ids_copy.xlsx")
-        assert handler.id_map == {'power_latop': {'n/a': 0}, 'time_laptop': {'n/a': 3},
-                                  'energy_intensity_network': {'n/a': 2}}
+        assert handler.id_map == {'power_latop': {'default': 0}, 'time_laptop': {'default': 3},
+                                  'energy_intensity_network': {'default': 2}}
         print(type(diff))
         assert (str(
             diff) == "{'type_changes': {'root[0][2][18]._value': {'old_type': <class 'NoneType'>, 'new_type': <class 'int'>, 'old_value': None, 'new_value': 3}, 'root[0][2][18]._style': {'old_type': <class 'NoneType'>, 'new_type': <class 'openpyxl.styles.cell_style.StyleArray'>, 'old_value': None, 'new_value': StyleArray('i', [0, 0, 0, 0, 0, 0, 0, 0, 0])}}}"
@@ -48,11 +48,12 @@ class TestVariableIDs(unittest.TestCase):
         handler.load_definitions("params", filename="tests/data/no_existing_ids.xlsx", id_flag=True)
         diff = get_diff_then_make_files_equal("tests/data/no_existing_ids.xlsx",
                                               "tests/data/no_existing_ids_copy.xlsx")
-        assert handler.id_map == {'power_latop': {'n/a': 0 , 'S1' :1}}
+        assert handler.id_map == {'power_latop': {'default': 0, 'S1': 1}}
         print(diff)
         assert (str(
             diff) == "{'type_changes': {'root[0][1][18]._value': {'old_type': <class 'NoneType'>, 'new_type': <class 'int'>, 'old_value': None, 'new_value': 0}, 'root[0][1][18]._style': {'old_type': <class 'NoneType'>, 'new_type': <class 'openpyxl.styles.cell_style.StyleArray'>, 'old_value': None, 'new_value': StyleArray('i', [0, 0, 0, 0, 0, 0, 0, 0, 0])}, 'root[0][2][18]._value': {'old_type': <class 'NoneType'>, 'new_type': <class 'int'>, 'old_value': None, 'new_value': 1}, 'root[0][2][18]._style': {'old_type': <class 'NoneType'>, 'new_type': <class 'openpyxl.styles.cell_style.StyleArray'>, 'old_value': None, 'new_value': StyleArray('i', [0, 0, 0, 0, 0, 0, 0, 0, 0])}}}"
-                or str(diff) == "{'type_changes': {'root[0][1][18]._style': {'old_type': <class 'NoneType'>, 'new_type': <class 'openpyxl.styles.cell_style.StyleArray'>, 'old_value': None, 'new_value': StyleArray('i', [0, 0, 0, 0, 0, 0, 0, 0, 0])}, 'root[0][1][18]._value': {'old_type': <class 'NoneType'>, 'new_type': <class 'int'>, 'old_value': None, 'new_value': 0}, 'root[0][2][18]._style': {'old_type': <class 'NoneType'>, 'new_type': <class 'openpyxl.styles.cell_style.StyleArray'>, 'old_value': None, 'new_value': StyleArray('i', [0, 0, 0, 0, 0, 0, 0, 0, 0])}, 'root[0][2][18]._value': {'old_type': <class 'NoneType'>, 'new_type': <class 'int'>, 'old_value': None, 'new_value': 1}}}")
+                or str(
+                diff) == "{'type_changes': {'root[0][1][18]._style': {'old_type': <class 'NoneType'>, 'new_type': <class 'openpyxl.styles.cell_style.StyleArray'>, 'old_value': None, 'new_value': StyleArray('i', [0, 0, 0, 0, 0, 0, 0, 0, 0])}, 'root[0][1][18]._value': {'old_type': <class 'NoneType'>, 'new_type': <class 'int'>, 'old_value': None, 'new_value': 0}, 'root[0][2][18]._style': {'old_type': <class 'NoneType'>, 'new_type': <class 'openpyxl.styles.cell_style.StyleArray'>, 'old_value': None, 'new_value': StyleArray('i', [0, 0, 0, 0, 0, 0, 0, 0, 0])}, 'root[0][2][18]._value': {'old_type': <class 'NoneType'>, 'new_type': <class 'int'>, 'old_value': None, 'new_value': 1}}}")
 
     def test_duplicate_ids(self):
         with self.assertRaises(Exception) as context:
