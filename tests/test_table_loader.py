@@ -58,8 +58,9 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_exp(self):
         repository = ParameterRepository()
-        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(sheet_name='Sheet1',
-                                                                                                   repository=repository)
+        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(
+            sheet_name='Sheet1',
+            repository=repository)
         p = repository.get_parameter('a')
 
         settings = {'sample_size': 3, 'times': pd.date_range('2016-01-01', '2017-01-01', freq='MS'),
@@ -72,8 +73,9 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_linear(self):
         repository = ParameterRepository()
-        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(sheet_name='Sheet1',
-                                                                                                   repository=repository)
+        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(
+            sheet_name='Sheet1',
+            repository=repository)
         p = repository.get_parameter('b')
 
         settings = {'sample_size': 3, 'times': pd.date_range('2010-01-01', '2010-12-01', freq='MS'),
@@ -85,8 +87,9 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
     def test_parameter_getvalue_mean(self):
         repository = ParameterRepository()
-        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(sheet_name='Sheet1',
-                                                                                                   repository=repository)
+        TableParameterLoader(filename='./tests/test_v2.xlsx', table_handler='openpyxl').load_into_repo(
+            sheet_name='Sheet1',
+            repository=repository)
         p = repository.get_parameter('a')
 
         settings = {'sample_size': 3, 'times': pd.date_range('2010-01-01', '2010-12-01', freq='MS'),
