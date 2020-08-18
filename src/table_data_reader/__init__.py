@@ -215,8 +215,8 @@ class Parameter(object):
                 generator = DistributionFunctionGenerator(**common_args)
             cf = False
             if kwargs['name'] in settings['country_vars']:
-                cf=True
-            self.cache = generator.generate_values(countries=settings['countries'], country_flag=cf,*args, **kwargs)
+                cf = True
+            self.cache = generator.generate_values(countries=settings['countries'], country_flag=cf, *args, **kwargs)
         return self.cache
 
     def add_usage(self, process_name, variable_name):
@@ -266,7 +266,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
         return sigma
 
-    def generate_values(self, countries=[],country_flag=False,*args, **kwargs):
+    def generate_values(self, countries=[], country_flag=False, *args, **kwargs):
         """
         Instantiate a random variable and apply annual growth factors.
 
@@ -283,9 +283,9 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         mu = {}
         if country_flag:
             for c in countries:
-                mu[c] = self.generate_mu(end_date, ref_date, start_date, country=c)
+                mu[c] = self.generate_mu(end_date, ref_date, start_date, country=c, **kwargs)
         else:
-            mu = self.generate_mu(end_date, ref_date, start_date)
+            mu = self.generate_mu(end_date, ref_date, start_date, **kwargs)
         # 3. Generate $\sigma$
         # Prepare array with growth values $\sigma$
         if self.sample_mean_value:
@@ -337,8 +337,8 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             dtype = 'float64'
 
         date_range = pd.date_range(start_date, end_date, freq='MS')
-        iterables = [countries, self.times, range(self.size)]
-        index_names = ['country', 'time', 'samples']
+        iterables = [self.times, range(self.size), countries]
+        index_names = ['time', 'samples', 'country']
         country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
         # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
         #                     index=country_multi_index, dtype=dtype)
@@ -350,13 +350,12 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             dicts = [alpha_sigma, mu]
             temp = {}
             for k in alpha_sigma.keys():
-                temp[k] = [x+y for x,y in zip(list(dicts[0][k]), list(dicts[1][k]))]
-            l=np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
-            series = pd.Series(l, index=country_multi_index,
-                           dtype=dtype)
+                temp[k] = [x + y for x, y in zip(list(dicts[0][k]), list(dicts[1][k]))]
+            l = np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
+            series = pd.Series(l, index=country_multi_index, dtype=dtype)
         else:
             series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
-                           dtype=dtype)
+                               dtype=dtype)
         # test if df has sub-zero values
         series.where(series < 0)
         df_sigma__dropna = series.where(series < 0).dropna()
@@ -371,7 +370,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         return series
 
-    def generate_mu(self, end_date, ref_date, start_date, country=None):
+    def generate_mu(self, end_date, ref_date, start_date, country=None, **kwargs):
         if self.kwargs['type'] == 'exp':
             ref_value = self.kwargs['ref value'][country] if country else self.kwargs['ref value']
             mu_bar = np.full(len(self.times), float(ref_value))
@@ -384,7 +383,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             mu = mu_bar * alpha_mu.ravel()
             mu = mu.reshape(len(self.times), 1)
             return mu
-        if self.kwargs['type'] == 'interp':
+        elif self.kwargs['type'] == 'interp':
             def toTimestamp(d):
                 return calendar.timegm(d.timetuple())
 
@@ -399,6 +398,8 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             ref_value_ = json.loads(self.kwargs['ref value'][country].strip()) if country else json.loads(
                 self.kwargs['ref value'].strip())
             return interpolate(ref_value_, self.times, self.kwargs['param'])
+        else:
+            raise Exception(f"no variable type set for variable {kwargs['name']}")
 
 
 class ConstantUncertaintyExponentialGrowthTimeSeriesGenerator(DistributionFunctionGenerator):
@@ -852,21 +853,22 @@ class OpenpyxlTableHandler(TableHandler):
                     values["id"][c] = pid
                     logger.debug(f'{name} {scenario} {c}: {values}')
                     definitions[name][scenario]["id"][c] = pid
-                    r=-1
+                    r = -1
                     for i, row in enumerate(rows[1:]):
-                        flag= True
+                        flag = True
                         for key, cell in zip(header, row):
                             if key == "region":
                                 if cell.value != c:
                                     flag = False
                             if key == "scenario":
-                                if cell.value != scenario and (cell.value=="" and scenario == "default"):
+                                if cell.value != scenario and (cell.value == "" and scenario == "default"):
                                     flag = False
-                        if flag==True:
+                        if flag == True:
                             r = i
                             break
                     if r == -1:
-                        raise Exception("Row for variable " + name + ", scenario " + scenario + ", country " + c + " not found")
+                        raise Exception(
+                            "Row for variable " + name + ", scenario " + scenario + ", country " + c + " not found")
                     cell = sheet.cell(row=r + 2, column=header.index('id') + 1)
                     cell.value = pid
                     logger.info(
@@ -894,7 +896,8 @@ class OpenpyxlTableHandler(TableHandler):
         if id_flag:
             if 'id' in values.keys() and (values["id"] or values["id"] == 0):
                 pid = values['id']
-                if (name not in self.id_map.keys() or scenario not in self.id_map[name].keys()) and name not in wb.sheetnames:
+                if (name not in self.id_map.keys() or scenario not in self.id_map[
+                    name].keys()) and name not in wb.sheetnames:
                     # raises exception if the ID already exists
                     if (any(pid in d.values() for d in self.id_map.values())):
                         raise Exception("Duplicate ID variable " + name)
@@ -936,9 +939,9 @@ class OpenpyxlTableHandler(TableHandler):
                                 country_values[k][temp_values["region"]] = temp_values[k]
                             else:
                                 country_values[k][temp_values["region"]] = values[k]
-                refdates=set(country_values['ref date'].values())
+                refdates = set(country_values['ref date'].values())
                 assert len(refdates) == 1
-                country_values['ref date']=refdates.pop()
+                country_values['ref date'] = refdates.pop()
                 definitions[name][scenario] = country_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
@@ -983,7 +986,7 @@ class OpenpyxlTableHandler(TableHandler):
 
                 visitor_function(ws=sheet, values=values, definitions=definitions,
                                  row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
-                                 header=header, wb=wb, countries= countries, countries_flag=cf)
+                                 header=header, wb=wb, countries=countries, countries_flag=cf)
         return definitions
 
     def load_definitions(self, sheet_name, filename: str = None, id_flag=False, countries=[], country_vars=[]):
@@ -1012,7 +1015,8 @@ class OpenpyxlTableHandler(TableHandler):
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
 
         table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
-                                        definitions=definitions, id_flag=id_flag, countries=countries, country_vars=country_vars)
+                                        definitions=definitions, id_flag=id_flag, countries=countries,
+                                        country_vars=country_vars)
 
         table_visitor_partial(visitor_function=self.ref_date_handling)
         if id_flag:
@@ -1027,7 +1031,7 @@ class OpenpyxlTableHandler(TableHandler):
                         cs.append(list(definitions[name][scenario][parameter].keys()))
                         break
         countryset = set(tuple(i) for i in cs)
-        if len(countryset)!=0 and len(countries)!=0:
+        if len(countryset) != 0 and len(countries) != 0:
             assert tuple(countries) in countryset
         assert len(countryset) <= 1  # asserts all variables that have country data have the same countries
 
@@ -1123,22 +1127,26 @@ class TableParameterLoader(object):
         :param sheet_name:
         :return: list of dicts with {header col name : cell value} pairs
         """
-        definitions = self.table_handler.load_definitions(sheet_name, filename=self.filename, id_flag=id_flag, countries=countries, country_vars=country_vars)
+        definitions = self.table_handler.load_definitions(sheet_name, filename=self.filename, id_flag=id_flag,
+                                                          countries=countries, country_vars=country_vars)
         self.definition_version = self.table_handler.version
         return definitions
 
-    def load_into_repo(self, repository: ParameterRepository = None, sheet_name: str = None, id_flag=False, countries=[], country_vars=[]):
+    def load_into_repo(self, repository: ParameterRepository = None, sheet_name: str = None, id_flag=False,
+                       countries=[], country_vars=[]):
         """
         Create a Repo from an excel file.
         :param repository: the repository to load into
         :param sheet_name:
         :return:
         """
-        repository.add_all(self.load_parameters(sheet_name, id_flag=id_flag, countries=countries, country_vars=country_vars))
+        repository.add_all(
+            self.load_parameters(sheet_name, id_flag=id_flag, countries=countries, country_vars=country_vars))
 
-    def load_parameters(self, sheet_name, id_flag=False, countries=[],country_vars=[]):
+    def load_parameters(self, sheet_name, id_flag=False, countries=[], country_vars=[]):
 
-        parameter_definitions = self.load_parameter_definitions(sheet_name=sheet_name, id_flag=id_flag, countries=countries, country_vars=country_vars)
+        parameter_definitions = self.load_parameter_definitions(sheet_name=sheet_name, id_flag=id_flag,
+                                                                countries=countries, country_vars=country_vars)
         params = []
 
         param_name_map = param_name_maps[int(self.definition_version)]
