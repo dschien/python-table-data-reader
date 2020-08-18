@@ -22,6 +22,8 @@ from scipy.interpolate import interp1d
 import json
 from typing import Callable
 
+import pint
+
 __author__ = 'schien'
 
 # import pkg_resources  # part of setuptools
@@ -213,10 +215,10 @@ class Parameter(object):
                                                                                         times=settings['times'])
             else:
                 generator = DistributionFunctionGenerator(**common_args)
-            cf = False
-            if kwargs['name'] in settings['country_vars']:
-                cf = True
-            self.cache = generator.generate_values(countries=settings['countries'], country_flag=cf, *args, **kwargs)
+
+            kwargs['country_flag'] = 'country_vars' in settings and kwargs['name'] in settings['country_vars']
+            kwargs['countries'] = settings['countries'] if 'countries' in settings else None
+            self.cache = generator.generate_values(*args, **kwargs)
         return self.cache
 
     def add_usage(self, process_name, variable_name):
@@ -266,7 +268,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
         return sigma
 
-    def generate_values(self, countries=[], country_flag=False, *args, **kwargs):
+    def generate_values(self, *args, **kwargs):
         """
         Instantiate a random variable and apply annual growth factors.
 
@@ -281,8 +283,9 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             raise Exception(f"Ref date not set for variable {kwargs['name']}")
 
         mu = {}
-        if country_flag:
-            for c in countries:
+        with_countries = 'country_flag' in kwargs and kwargs['country_flag']
+        if with_countries:
+            for c in kwargs['countries']:
                 mu[c] = self.generate_mu(end_date, ref_date, start_date, country=c, **kwargs)
         else:
             mu = self.generate_mu(end_date, ref_date, start_date, **kwargs)
@@ -291,18 +294,18 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         if self.sample_mean_value:
             sigma = np.zeros((len(self.times), self.size))
         else:
-            if country_flag:
+            if with_countries:
                 sigma = {}
-                for c in countries:
+                for c in kwargs['countries']:
                     sigma[c] = self.generate_sigmas(country=c)
             else:
                 sigma = self.generate_sigmas()
         # logger.debug(ref_date.strftime("%b %d %Y"))
 
         # 4. Prepare growth array for $\alpha_{sigma}$
-        if country_flag:
+        if with_countries:
             alpha_sigma = {}
-            for c in countries:
+            for c in kwargs['countries']:
                 growth_factor = self.kwargs['ef_growth_factor'][c]
                 alpha_sigma[c] = growth_coefficients(start_date,
                                                      end_date,
@@ -336,13 +339,16 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         else:
             dtype = 'float64'
 
-        date_range = pd.date_range(start_date, end_date, freq='MS')
-        iterables = [self.times, range(self.size), countries]
-        index_names = ['time', 'samples', 'country']
-        country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
         # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
         #                     index=country_multi_index, dtype=dtype)
-        if country_flag:
+        if with_countries:
+            date_range = pd.date_range(start_date, end_date, freq='MS')
+            iterables = [self.times, range(self.size), kwargs['countries']]
+            index_names = ['time', 'samples','country']
+            country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
+        # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
+        #                     index=country_multi_index, dtype=dtype)
+
             if not self.sample_mean_value:
                 alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
             else:
@@ -682,7 +688,7 @@ class TableHandler(object):
         self.version = version
 
     @abstractmethod
-    def load_definitions(self, sheet_name, filename=None, id_flag=False):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False, **kwargs):
         raise NotImplementedError()
 
 
@@ -1104,7 +1110,7 @@ class TableParameterLoader(object):
             table_handler_instance = XLWingsTableHandler()
         self.table_handler: TableHandler = table_handler_instance
 
-    def load_parameter_definitions(self, sheet_name: str = None, id_flag=False, countries=[], country_vars=[]):
+    def load_parameter_definitions(self, sheet_name: str = None, id_flag=False, **kwargs):
         """
         Load variable text from rows in excel file.
         If no spreadsheet arg is given, all spreadsheets are loaded.
@@ -1128,12 +1134,12 @@ class TableParameterLoader(object):
         :return: list of dicts with {header col name : cell value} pairs
         """
         definitions = self.table_handler.load_definitions(sheet_name, filename=self.filename, id_flag=id_flag,
-                                                          countries=countries, country_vars=country_vars)
+                                                          **kwargs)
         self.definition_version = self.table_handler.version
         return definitions
 
     def load_into_repo(self, repository: ParameterRepository = None, sheet_name: str = None, id_flag=False,
-                       countries=[], country_vars=[]):
+                       **kwargs):
         """
         Create a Repo from an excel file.
         :param repository: the repository to load into
@@ -1141,12 +1147,12 @@ class TableParameterLoader(object):
         :return:
         """
         repository.add_all(
-            self.load_parameters(sheet_name, id_flag=id_flag, countries=countries, country_vars=country_vars))
+            self.load_parameters(sheet_name, id_flag=id_flag, **kwargs))
 
-    def load_parameters(self, sheet_name, id_flag=False, countries=[], country_vars=[]):
+    def load_parameters(self, sheet_name, id_flag=False, **kwargs):
 
         parameter_definitions = self.load_parameter_definitions(sheet_name=sheet_name, id_flag=id_flag,
-                                                                countries=countries, country_vars=country_vars)
+                                                                **kwargs)
         params = []
 
         param_name_map = param_name_maps[int(self.definition_version)]
@@ -1160,7 +1166,7 @@ class TableParameterLoader(object):
                         parameter_kwargs_def[param_name_map[k]] = v
                     else:
                         parameter_kwargs_def[k] = v
-                elif k in countries:
+                elif 'countries' in kwargs and k in kwargs['countries']:
                     parameter_kwargs_def[k] = {}
                     for l, w in _def[k].items():
                         if l in param_name_map:

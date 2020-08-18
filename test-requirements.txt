@@ -2,5 +2,6 @@ scipy
 numpy
 pandas==0.24.2
 xlrd
+openpyxl
 # pint
 # pint-pandas
