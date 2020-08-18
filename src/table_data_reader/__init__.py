@@ -336,8 +336,8 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         else:
             dtype = 'float64'
 
-        date_range = pd.date_range(start_date, end_date, freq='MS')
-        iterables = [countries, self.times, range(self.size)]
+        # date_range = pd.date_range(start_date, end_date, freq='MS')
+        iterables = [self.times, range(self.size), countries]
         index_names = ['country', 'time', 'samples']
         country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
         # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
