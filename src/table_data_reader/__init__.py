@@ -342,12 +342,9 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
         #                     index=country_multi_index, dtype=dtype)
         if with_countries:
-            date_range = pd.date_range(start_date, end_date, freq='MS')
-            iterables = [self.times, range(self.size), kwargs['countries']]
+            iterables = [self.times, range(self.size),kwargs['countries']]
             index_names = ['time', 'samples','country']
             country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
-        # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
-        #                     index=country_multi_index, dtype=dtype)
 
             if not self.sample_mean_value:
                 alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
