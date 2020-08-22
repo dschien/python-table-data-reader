@@ -834,10 +834,10 @@ class OpenpyxlTableHandler(TableHandler):
 
         name = values["variable"]
         scenario = values['scenario'] if values['scenario'] else "default"
-        country=values['country']
-        if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (
+        country=values['country'] if 'country' in values else None
+        if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (kwargs['countries_flag'] and
             name in kwargs['country_vars'] and not all(c in self.id_map[name][scenario].keys() for c in countries)):
-            if name not in kwargs['country_vars']:
+            if not kwargs['countries_flag'] or name not in kwargs['country_vars']:
                 pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
                 self.highest_id += 1
                 self.id_map[name][scenario] = pid
@@ -951,7 +951,7 @@ class OpenpyxlTableHandler(TableHandler):
                     else:
                         if pid > self.highest_id:
                             self.highest_id = pid
-                        if name in kwargs['country_vars']:
+                        if countries_flag and name in kwargs['country_vars']:
                             if country is None:
                                 self.id_map[name][scenario]["overall"] = pid
                             else:
