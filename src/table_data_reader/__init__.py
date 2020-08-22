@@ -824,7 +824,7 @@ class OpenpyxlTableHandler(TableHandler):
         rows = list(sheet.iter_rows())
         return len(rows)
 
-    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, id_flag=False, wb=None,
+    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, inline_countries=None, id_flag=False, wb=None,
                 sheet_name=None, countries=[], **kwargs):
         """
         using the id map, assign ids to those variables that have not got an id yet
@@ -834,9 +834,10 @@ class OpenpyxlTableHandler(TableHandler):
 
         name = values["variable"]
         scenario = values['scenario'] if values['scenario'] else "default"
+        country=values['country']
         if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (
-            name in wb.sheetnames and not all(c in self.id_map[name][scenario].keys() for c in countries)):
-            if not len(countries):
+            name in kwargs['country_vars'] and not all(c in self.id_map[name][scenario].keys() for c in countries)):
+            if name not in kwargs['country_vars']:
                 pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
                 self.highest_id += 1
                 self.id_map[name][scenario] = pid
@@ -847,42 +848,80 @@ class OpenpyxlTableHandler(TableHandler):
                 c.value = pid
                 logger.info("ID " + str(pid) + " given to process " + name + "in scenario" + scenario)
             else:
-                self.id_map[name][scenario] = {}
-                values["id"] = {}
-                definitions[name][scenario]["id"] = {}
-                sheet = wb[name]
-                rows = list(sheet.iter_rows())
-                header = [cell.value for cell in rows[0]]
-                for c in countries:
-                    pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
-                    self.highest_id += 1
-                    self.id_map[name][scenario][c] = pid
-                    values["id"][c] = pid
-                    logger.debug(f'{name} {scenario} {c}: {values}')
-                    definitions[name][scenario]["id"][c] = pid
-                    r = -1
-                    for i, row in enumerate(rows[1:]):
-                        flag = True
-                        for key, cell in zip(header, row):
-                            if key == "region":
-                                if cell.value != c:
-                                    flag = False
-                            if key == "scenario":
-                                if cell.value != scenario and (cell.value == "" and scenario == "default"):
-                                    flag = False
-                        if flag == True:
-                            r = i
-                            break
-                    if r == -1:
-                        raise Exception(
-                            "Row for variable " + name + ", scenario " + scenario + ", country " + c + " not found")
-                    cell = sheet.cell(row=r + 2, column=header.index('id') + 1)
-                    cell.value = pid
-                    logger.info(
-                        "ID " + str(pid) + " given to process " + name + "in scenario " + scenario + "for country" + c)
+                if not self.id_map[name][scenario]:
+                    self.id_map[name][scenario] = {}
+                if not values['id']:
+                    values["id"] = {}
+                if not definitions[name][scenario]["id"]:
+                    definitions[name][scenario]["id"] = {}
+                if name in inline_countries.keys():
+                    if country:
+                        pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
+                        self.highest_id += 1
+                        self.id_map[name][scenario][country] = pid
+                        values["id"][country] = pid
+                        logger.debug(f'{name} {scenario} {country}: {values}')
+                        definitions[name][scenario]["id"][country] = pid
+                        c = ws.cell(row=row_idx + 2, column=self.id_column)
+                        c.value = pid
+                        logger.info("ID " + str(pid) + " given to process " + name + "in scenario" + scenario +" for country "+ country)
+                    else:
+                        return None
+                else:
+                    sheet = wb[name]
+                    rows = list(sheet.iter_rows())
+                    header = [cell.value for cell in rows[0]]
+                    for c in countries:
+                        pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
+                        self.highest_id += 1
+                        self.id_map[name][scenario][c] = pid
+                        values["id"][c] = pid
+                        logger.debug(f'{name} {scenario} {c}: {values}')
+                        definitions[name][scenario]["id"][c] = pid
+                        r = -1
+                        for i, row in enumerate(rows[1:]):
+                            flag = True
+                            for key, cell in zip(header, row):
+                                if key == "country":
+                                    if cell.value != c:
+                                        flag = False
+                                if key == "scenario":
+                                    if cell.value != scenario and (cell.value == "" and scenario == "default"):
+                                        flag = False
+                                if key=="country":
+                                    if cell.value!=country:
+                                        flag=False
+                            if flag == True:
+                                r = i
+                                break
+                        if r == -1:
+                            raise Exception(
+                                "Row for variable " + name + ", scenario " + scenario + ", country " + c + " not found")
+                        cell = sheet.cell(row=r + 2, column=header.index('id') + 1)
+                        cell.value = pid
+                        logger.info(
+                            "ID " + str(pid) + " given to process " + name + "in scenario " + scenario + "for country" + c)
+
+    def countries_handler(self, values: Dict = None, inline_countries=None,sheet_name=None, **kwargs):
+        var=values["variable"]
+        c=values["country"]
+        s=values["scenario"] if values["scenario"] else "default"
+        if c is not None:
+            if var not in inline_countries.keys():
+                inline_countries[var] = {}
+            if s not in inline_countries[var].keys():
+                inline_countries[var][s] = {}
+            if c in inline_countries[var][s].keys():
+                logger.error(
+                    f"Duplicate entry for parameter "
+                    f"with name <{var}>,<{c}> scenario, and <{s}> country in sheet {sheet_name}")
+                raise ValueError(
+                    f"Duplicate entry for parameter "
+                    f"with name <{var}>,<{c}> scenario, and <{s}> country in sheet {sheet_name}")
+            inline_countries[var][s][c] = values
 
     def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
-                          countries_flag=False, wb=None, **kwargs):
+                          countries_flag=False, inline_countries=None, wb=None, **kwargs):
 
         if 'ref date' in values and values['ref date']:
             if isinstance(values['ref date'], datetime.datetime):
@@ -898,21 +937,32 @@ class OpenpyxlTableHandler(TableHandler):
         logger.debug(f'values for {values["variable"]}: {values}')
         name = values['variable']
         scenario = values['scenario'] if values['scenario'] else "default"
-        # store id's in a map to identify largest existing id
+        country = values['country']
+        # store ids in a map to identify largest existing id
         if id_flag:
-            if 'id' in values.keys() and (values["id"] or values["id"] == 0):
+            if 'id' in values.keys() and (values["id"] is not None):
                 pid = values['id']
                 if (name not in self.id_map.keys() or scenario not in self.id_map[
-                    name].keys()) and name not in wb.sheetnames:
+                    name].keys()) or (name in kwargs['country_vars'] and country not in self.id_map[
+                    name][scenario].keys()):
                     # raises exception if the ID already exists
                     if (any(pid in d.values() for d in self.id_map.values())):
                         raise Exception("Duplicate ID variable " + name)
                     else:
-                        self.id_map[name][scenario] = pid
                         if pid > self.highest_id:
                             self.highest_id = pid
+                        if name in kwargs['country_vars']:
+                            if country is None:
+                                self.id_map[name][scenario]["overall"] = pid
+                            else:
+                                self.id_map[name][scenario][country] = pid
+                        else:
+                            self.id_map[name][scenario] = pid
 
         if scenario in definitions[name].keys():
+            #if this is an inline country row the error doesn't need to be raised as it's normal
+            if values['country'] is not None:
+                return None
             logger.error(
                 f"Duplicate entry for parameter "
                 f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
@@ -920,31 +970,44 @@ class OpenpyxlTableHandler(TableHandler):
                 f"Duplicate entry for parameter "
                 f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
         else:
-            # if the countries flag is not on (argument passed in, currently defaults to on) or there is no sheet by this parameter name just read from params
-            if not countries_flag or name not in wb.sheetnames:
+            # if the countries flag is not on or there is no sheet by this parameter name just read from params
+            if not countries_flag or (name not in wb.sheetnames and name not in inline_countries.keys()):
                 definitions[name][scenario] = values
             else:
                 keys = list(values.keys())
                 country_values = {}
-                set_values = ["variable", "scenario", "type", "param", "unit"]
+                set_values = ["variable", "scenario", "type", "param", "unit", "country"]
                 for s in set_values:
                     keys.remove(s)
                     country_values[s] = values[s]
                 for k in keys:
                     country_values[k] = {}
-                rows = list(wb[name].iter_rows())
-                header = [cell.value for cell in rows[0]]
-                for i, row in enumerate(rows[1:]):
-                    temp_values = {}
-                    for key, cell in zip(header, row):
-                        temp_values[key] = cell.value  # reads values from the variable's sheet
-                    temp_scenario = temp_values['scenario'] if temp_values['scenario'] else "default"
-                    if temp_scenario == scenario:
-                        for k in keys:
-                            if k in header and temp_values[k] is not None:
-                                country_values[k][temp_values["region"]] = temp_values[k]
-                            else:
-                                country_values[k][temp_values["region"]] = values[k]
+                if name in inline_countries.keys():
+                    if scenario in inline_countries[name].keys():
+                        for c in inline_countries[name][scenario].keys():
+                            for k in keys:
+                                if inline_countries[name][scenario][c][k] is not None:
+                                    country_values[k][c]=inline_countries[name][scenario][c][k] #do 10005 here
+                                else:
+                                    country_values[k][c] = values[k]
+                else:
+                    rows = list(wb[name].iter_rows())
+                    header = [cell.value for cell in rows[0]]
+                    for i, row in enumerate(rows[1:]):
+                        temp_values = {}
+                        for key, cell in zip(header, row):
+                            temp_values[key] = cell.value  # reads values from the variable's sheet
+                        temp_scenario = temp_values['scenario'] if temp_values['scenario'] else "default"
+                        if temp_scenario == scenario:
+                            for k in keys:
+                                if k in header and temp_values[k] is not None:
+                                    country_values[k][temp_values["country"]] = temp_values[k]
+                                else:
+                                    country_values[k][temp_values["country"]] = values[k]
+                                if k=='id' and id_flag:
+                                    self.id_map[name][scenario][temp_values['country']] = temp_values['id']
+                                    if temp_values['id'] > self.highest_id:
+                                        self.highest_id = temp_values['id']
                 refdates = set(country_values['ref date'].values())
                 assert len(refdates) == 1
                 country_values['ref date'] = refdates.pop()
@@ -1020,15 +1083,16 @@ class OpenpyxlTableHandler(TableHandler):
             self.version = version
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
-
+        inline_countries={}
         table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
-                                        definitions=definitions, **kwargs)
-
+                                        definitions=definitions, inline_countries=inline_countries,  **kwargs)
+        if kwargs.get('with_countries'):
+            table_visitor_partial(visitor_function=self.countries_handler)
         table_visitor_partial(visitor_function=self.ref_date_handling)
         if kwargs.get('id_flag'):
             table_visitor_partial(visitor_function=self.add_ids)
             wb.save(filename)
-
+        #check all variables have the same set of countries and that it is the same set as the yaml file dictates
         cs = []
         for name in definitions.keys():
             for scenario in definitions[name].keys():
