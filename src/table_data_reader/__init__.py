@@ -937,7 +937,7 @@ class OpenpyxlTableHandler(TableHandler):
         logger.debug(f'values for {values["variable"]}: {values}')
         name = values['variable']
         scenario = values['scenario'] if values['scenario'] else "default"
-        country = values['country']
+        country = values['country'] if 'country' in values.keys() else None
         # store ids in a map to identify largest existing id
         if id_flag:
             if 'id' in values.keys() and (values["id"] is not None):
