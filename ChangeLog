@@ -1,6 +1,9 @@
 CHANGES
 =======
 
+* final bug fix, all tests pass locally
+* small bug fix
+* inline countries + id fix
 * updated repo url for CI services
 * switch countries on/off with kwarg 'with\_countries' refactoring
 * df nans fixed
