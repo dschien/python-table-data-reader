@@ -216,12 +216,12 @@ class Parameter(object):
             else:
                 generator = DistributionFunctionGenerator(**common_args)
 
-            # this is a country variable
-            # @todo refactor - use 'with_countries' as a global switch and auto-lookup country variables as you go along
-            if settings.get('with_countries'):
-                kwargs['with_countries'] = settings['with_countries']
-                kwargs['country_flag'] = kwargs['name'] in settings['country_vars']
-                kwargs['countries'] = settings['countries'] if 'countries' in settings else None
+            # this is a group variable
+            # @todo refactor - use 'with_group' as a global switch and auto-lookup country variables as you go along
+            if settings.get('with_group'):
+                kwargs['with_group'] = settings['with_group']
+                kwargs['group_flag'] = kwargs['name'] in settings['group_vars']
+                kwargs['groupings'] = settings['groupings'] if 'groupings' in settings else None
             self.cache = generator.generate_values(*args, **kwargs)
         return self.cache
 
@@ -253,20 +253,20 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         self._multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
         assert type(times.freq) == pd.tseries.offsets.MonthBegin, 'Time index must have monthly frequency'
 
-    def generate_sigmas(self, country=None):
+    def generate_sigmas(self, group=None):
         if self.kwargs['type'] == 'interp':
 
             def get_date(record):
                 return datetime.datetime.strptime(record[0], "%Y-%m-%d")
 
-            ref_value = self.kwargs['ref value'][country] if country else self.kwargs['ref value']
+            ref_value = self.kwargs['ref value'][group] if group else self.kwargs['ref value']
             ref_value_ = sorted(json.loads(ref_value.strip()).items(), key=get_date)
             intial_value = ref_value_[0][1]
         else:
-            intial_value = float(self.kwargs['ref value'][country]) if country else float(self.kwargs['ref value'])
+            intial_value = float(self.kwargs['ref value'][group]) if group else float(self.kwargs['ref value'])
 
         initial_value_proportional_variation = self.kwargs['initial_value_proportional_variation'][
-            country] if country else self.kwargs['initial_value_proportional_variation']
+            group] if group else self.kwargs['initial_value_proportional_variation']
         variability_ = intial_value * initial_value_proportional_variation
         logger.debug(f'sampling random distribution with parameters -{variability_}, 0, {variability_}')
         sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
@@ -278,7 +278,6 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         :return:
         """
-        logger.debug(f"generating values for {kwargs['name']}")
         assert 'ref value' in self.kwargs
         # 1. Generate $\mu$
         start_date = self.times[0].to_pydatetime()
@@ -289,9 +288,9 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         mu = {}
 
-        if kwargs.get('with_countries'):
-            for c in kwargs['countries']:
-                mu[c] = self.generate_mu(end_date, ref_date, start_date, country=c, **kwargs)
+        if kwargs.get('with_group'):
+            for c in kwargs['groupings']:
+                mu[c] = self.generate_mu(end_date, ref_date, start_date, group=c, **kwargs)
         else:
             mu = self.generate_mu(end_date, ref_date, start_date, **kwargs)
         # 3. Generate $\sigma$
@@ -299,21 +298,22 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         if self.sample_mean_value:
             sigma = np.zeros((len(self.times), self.size))
         else:
-            if kwargs.get('with_countries'):
+            if kwargs.get('with_group'):
                 sigma = {}
-                for c in kwargs['countries']:
-                    sigma[c] = self.generate_sigmas(country=c)
+                for c in kwargs['groupings']:
+                    sigma[c] = self.generate_sigmas(group=c)
             else:
                 sigma = self.generate_sigmas()
         # logger.debug(ref_date.strftime("%b %d %Y"))
 
         # 4. Prepare growth array for $\alpha_{sigma}$
-        if kwargs.get('with_countries'):
+        if kwargs.get('with_group'):
             alpha_sigma = {}
             for c in kwargs['countries']:
                 growth_factor = self.kwargs['ef_growth_factor'][c] if isinstance(self.kwargs['ef_growth_factor'],
                                                                                  dict) else self.kwargs[
                     'ef_growth_factor']
+                # growth_factor = self.kwargs['ef_growth_factor'][c]
                 alpha_sigma[c] = growth_coefficients(start_date,
                                                      end_date,
                                                      ref_date,
@@ -346,12 +346,10 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         else:
             dtype = 'float64'
 
-        # series = pd.Series((np.arange(len(date_range) * self.size * len(countries))).ravel(),
-        #                     index=country_multi_index, dtype=dtype)
-        if kwargs.get('with_countries'):
-            iterables = [self.times, range(self.size), kwargs['countries']]
-            index_names = ['time', 'samples', 'country']
-            country_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
+        if kwargs.get('with_group'):
+            iterables = [self.times, range(self.size), kwargs['groupings']]
+            index_names = ['time', 'samples', 'group']
+            group_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
 
             if not self.sample_mean_value:
                 alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
@@ -362,7 +360,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             for k in alpha_sigma.keys():
                 temp[k] = [x + y for x, y in zip(list(dicts[0][k]), list(dicts[1][k]))]
             l = np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
-            series = pd.Series(l, index=country_multi_index, dtype=dtype)
+            series = pd.Series(l, index=group_multi_index, dtype=dtype)
         else:
             series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
                                dtype=dtype)
@@ -380,17 +378,14 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         return series
 
-    def generate_mu(self, end_date, ref_date, start_date, country=None, **kwargs):
+    def generate_mu(self, end_date, ref_date, start_date, group=None, **kwargs):
         if self.kwargs['type'] == 'exp':
-            ref_value = self.kwargs['ref value'][country] if country \
-                                                             and isinstance(self.kwargs['ref value'], dict) else \
+            ref_value = self.kwargs['ref value'][group] if group and isinstance(self.kwargs['ref value'], dict) else \
                 self.kwargs['ref value']
-
             mu_bar = np.full(len(self.times), float(ref_value))
             # 2. Apply Growth to Mean Values $\alpha_{mu}$
-            growth_factor = self.kwargs['growth_factor'][country] if country and isinstance(
-                self.kwargs['growth_factor'], dict) \
-                else self.kwargs['growth_factor']
+            growth_factor = self.kwargs['growth_factor'][group] if group and isinstance(
+                self.kwargs['growth_factor'], dict) else self.kwargs['growth_factor']
             alpha_mu = growth_coefficients(start_date,
                                            end_date,
                                            ref_date,
@@ -410,7 +405,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                 f = interp1d(arr1, arr2, kind=kind, fill_value='extrapolate')
                 return f([toTimestamp(date_val) for date_val in date_range])
 
-            ref_value_ = json.loads(self.kwargs['ref value'][country].strip()) if country and isinstance(
+            ref_value_ = json.loads(self.kwargs['ref value'][group].strip()) if group and isinstance(
                 self.kwargs['ref value'], dict) else json.loads(
                 self.kwargs['ref value'].strip())
             return interpolate(ref_value_, self.times, self.kwargs['param'])
@@ -833,9 +828,9 @@ class OpenpyxlTableHandler(TableHandler):
         rows = list(sheet.iter_rows())
         return len(rows)
 
-    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, inline_countries=None, id_flag=False,
+    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, inline_groupings=None, id_flag=False,
                 wb=None,
-                sheet_name=None, countries=[], **kwargs):
+                sheet_name=None, groupings=[], **kwargs):
         """
         using the id map, assign ids to those variables that have not got an id yet
         :return:
@@ -844,12 +839,10 @@ class OpenpyxlTableHandler(TableHandler):
 
         name = values["variable"]
         scenario = values['scenario'] if values['scenario'] else "default"
-        country = values['country'] if 'country' in values else None
-        if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (kwargs['countries_flag'] and
-                                                                                          name in kwargs[
-                                                                                              'country_vars'] and not all(
-                    c in self.id_map[name][scenario].keys() for c in countries)):
-            if not kwargs['countries_flag'] or name not in kwargs['country_vars']:
+        group = values['group'] if 'group' in values else None
+        if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (kwargs['group_flag'] and
+            name in kwargs['group_vars'] and not all(c in self.id_map[name][scenario].keys() for c in groupings)):
+            if not kwargs['group_flag'] or name not in kwargs['group_vars']:
                 pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
                 self.highest_id += 1
                 self.id_map[name][scenario] = pid
@@ -866,25 +859,25 @@ class OpenpyxlTableHandler(TableHandler):
                     values["id"] = {}
                 if not definitions[name][scenario]["id"]:
                     definitions[name][scenario]["id"] = {}
-                if name in inline_countries.keys():
-                    if country:
+                if name in inline_groupings.keys():
+                    if group:
                         pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
                         self.highest_id += 1
-                        self.id_map[name][scenario][country] = pid
-                        values["id"][country] = pid
-                        logger.debug(f'{name} {scenario} {country}: {values}')
-                        definitions[name][scenario]["id"][country] = pid
+                        self.id_map[name][scenario][group] = pid
+                        values["id"][group] = pid
+                        logger.debug(f'{name} {scenario} {group}: {values}')
+                        definitions[name][scenario]["id"][group] = pid
                         c = ws.cell(row=row_idx + 2, column=self.id_column)
                         c.value = pid
                         logger.info("ID " + str(
-                            pid) + " given to process " + name + "in scenario" + scenario + " for country " + country)
+                            pid) + " given to process " + name + "in scenario" + scenario + " for group " + group)
                     else:
                         return None
                 else:
                     sheet = wb[name]
                     rows = list(sheet.iter_rows())
                     header = [cell.value for cell in rows[0]]
-                    for c in countries:
+                    for c in groupings:
                         pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
                         self.highest_id += 1
                         self.id_map[name][scenario][c] = pid
@@ -895,47 +888,46 @@ class OpenpyxlTableHandler(TableHandler):
                         for i, row in enumerate(rows[1:]):
                             flag = True
                             for key, cell in zip(header, row):
-                                if key == "country":
+                                if key == "group":
                                     if cell.value != c:
                                         flag = False
                                 if key == "scenario":
                                     if cell.value != scenario and (cell.value == "" and scenario == "default"):
                                         flag = False
-                                if key == "country":
-                                    if cell.value != country:
+                                if key == "group":
+                                    if cell.value != group:
                                         flag = False
                             if flag == True:
                                 r = i
                                 break
                         if r == -1:
                             raise Exception(
-                                "Row for variable " + name + ", scenario " + scenario + ", country " + c + " not found")
+                                "Row for variable " + name + ", scenario " + scenario + ", group " + c + " not found")
                         cell = sheet.cell(row=r + 2, column=header.index('id') + 1)
                         cell.value = pid
                         logger.info(
-                            "ID " + str(
-                                pid) + " given to process " + name + "in scenario " + scenario + "for country" + c)
+                            "ID " + str(pid) + " given to process " + name + "in scenario " + scenario + "for group" + c)
 
-    def countries_handler(self, values: Dict = None, inline_countries=None, sheet_name=None, **kwargs):
+    def groupings_handler(self, values: Dict = None, inline_groupings=None, sheet_name=None, **kwargs):
         var = values["variable"]
-        c = values["country"]
+        c = values["group"]
         s = values["scenario"] if values["scenario"] else "default"
         if c is not None:
-            if var not in inline_countries.keys():
-                inline_countries[var] = {}
-            if s not in inline_countries[var].keys():
-                inline_countries[var][s] = {}
-            if c in inline_countries[var][s].keys():
+            if var not in inline_groupings.keys():
+                inline_groupings[var] = {}
+            if s not in inline_groupings[var].keys():
+                inline_groupings[var][s] = {}
+            if c in inline_groupings[var][s].keys():
                 logger.error(
                     f"Duplicate entry for parameter "
-                    f"with name <{var}>,<{c}> scenario, and <{s}> country in sheet {sheet_name}")
+                    f"with name <{var}>,<{c}> scenario, and <{s}> group in sheet {sheet_name}")
                 raise ValueError(
                     f"Duplicate entry for parameter "
-                    f"with name <{var}>,<{c}> scenario, and <{s}> country in sheet {sheet_name}")
-            inline_countries[var][s][c] = values
+                    f"with name <{var}>,<{c}> scenario, and <{s}> group in sheet {sheet_name}")
+            inline_groupings[var][s][c] = values
 
     def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
-                          countries_flag=False, inline_countries=None, wb=None, **kwargs):
+                          group_flag=False, inline_groupings=None, wb=None, **kwargs):
 
         if 'ref date' in values and values['ref date']:
             if isinstance(values['ref date'], datetime.datetime):
@@ -951,13 +943,13 @@ class OpenpyxlTableHandler(TableHandler):
         logger.debug(f'values for {values["variable"]}: {values}')
         name = values['variable']
         scenario = values['scenario'] if values['scenario'] else "default"
-        country = values['country'] if 'country' in values.keys() else None
+        group = values['group'] if 'group' in values.keys() else None
         # store ids in a map to identify largest existing id
         if id_flag:
             if 'id' in values.keys() and (values["id"] is not None):
                 pid = values['id']
                 if (name not in self.id_map.keys() or scenario not in self.id_map[
-                    name].keys()) or (name in kwargs['country_vars'] and country not in self.id_map[
+                    name].keys()) or (name in kwargs['group_vars'] and group not in self.id_map[
                     name][scenario].keys()):
                     # raises exception if the ID already exists
                     if (any(pid in d.values() for d in self.id_map.values())):
@@ -965,17 +957,17 @@ class OpenpyxlTableHandler(TableHandler):
                     else:
                         if pid > self.highest_id:
                             self.highest_id = pid
-                        if countries_flag and name in kwargs['country_vars']:
-                            if country is None:
+                        if group_flag and name in kwargs['group_vars']:
+                            if group is None:
                                 self.id_map[name][scenario]["overall"] = pid
                             else:
-                                self.id_map[name][scenario][country] = pid
+                                self.id_map[name][scenario][group] = pid
                         else:
                             self.id_map[name][scenario] = pid
 
         if scenario in definitions[name].keys():
-            # if this is an inline country row the error doesn't need to be raised as it's normal
-            if values['country'] is not None:
+            # if this is an inline group row the error doesn't need to be raised as it's normal
+            if values['group'] is not None:
                 return None
             logger.error(
                 f"Duplicate entry for parameter "
@@ -984,26 +976,26 @@ class OpenpyxlTableHandler(TableHandler):
                 f"Duplicate entry for parameter "
                 f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
         else:
-            # if the countries flag is not on or there is no sheet by this parameter name just read from params
-            if not countries_flag or (name not in wb.sheetnames and name not in inline_countries.keys()):
+            # if the group flag is not on or there is no sheet by this parameter name just read from params
+            if not group_flag or (name not in wb.sheetnames and name not in inline_groupings.keys()):
                 definitions[name][scenario] = values
             else:
                 keys = list(values.keys())
-                country_values = {}
-                set_values = ["variable", "scenario", "type", "param", "unit", "country"]
+                group_values = {}
+                set_values = ["variable", "scenario", "type", "param", "unit", "group"]
                 for s in set_values:
                     keys.remove(s)
-                    country_values[s] = values[s]
+                    group_values[s] = values[s]
                 for k in keys:
-                    country_values[k] = {}
-                if name in inline_countries.keys():
-                    if scenario in inline_countries[name].keys():
-                        for c in inline_countries[name][scenario].keys():
+                    group_values[k] = {}
+                if name in inline_groupings.keys():
+                    if scenario in inline_groupings[name].keys():
+                        for c in inline_groupings[name][scenario].keys():
                             for k in keys:
-                                if inline_countries[name][scenario][c][k] is not None:
-                                    country_values[k][c] = inline_countries[name][scenario][c][k]  # do 10005 here
+                                if inline_groupings[name][scenario][c][k] is not None:
+                                    group_values[k][c] = inline_groupings[name][scenario][c][k]  # do 10005 here
                                 else:
-                                    country_values[k][c] = values[k]
+                                    group_values[k][c] = values[k]
                 else:
                     rows = list(wb[name].iter_rows())
                     header = [cell.value for cell in rows[0]]
@@ -1015,21 +1007,20 @@ class OpenpyxlTableHandler(TableHandler):
                         if temp_scenario == scenario:
                             for k in keys:
                                 if k in header and temp_values[k] is not None:
-                                    country_values[k][temp_values["country"]] = temp_values[k]
+                                    group_values[k][temp_values["group"]] = temp_values[k]
                                 else:
-                                    country_values[k][temp_values["country"]] = values[k]
+                                    group_values[k][temp_values["group"]] = values[k]
                                 if k == 'id' and id_flag:
-                                    self.id_map[name][scenario][temp_values['country']] = temp_values['id']
+                                    self.id_map[name][scenario][temp_values['group']] = temp_values['id']
                                     if temp_values['id'] > self.highest_id:
                                         self.highest_id = temp_values['id']
-                refdates = set(country_values['ref date'].values())
+                refdates = set(group_values['ref date'].values())
                 assert len(refdates) == 1
-                country_values['ref date'] = refdates.pop()
-                definitions[name][scenario] = country_values
+                group_values['ref date'] = refdates.pop()
+                definitions[name][scenario] = group_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
                       definitions=None, **kwargs):
-        # countries = [], country_vars = []
         """
         stub for id management
 
@@ -1065,12 +1056,12 @@ class OpenpyxlTableHandler(TableHandler):
                     continue
 
                 cf = False
-                if kwargs.get('with_countries') and values['variable'] in kwargs['country_vars']:
+                if kwargs.get('with_group') and values['variable'] in kwargs['group_vars']:
                     cf = True
 
                 visitor_function(ws=sheet, values=values, definitions=definitions,
                                  row_idx=i, sheet_name=_sheet_name, row=row,
-                                 header=header, wb=wb, countries_flag=cf, **kwargs)
+                                 header=header, wb=wb, group_flag=cf, **kwargs)
         return definitions
 
     def load_definitions(self, sheet_name, filename: str = None, **kwargs):
@@ -1097,16 +1088,16 @@ class OpenpyxlTableHandler(TableHandler):
             self.version = version
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
-        inline_countries = {}
+        inline_groupings = {}
         table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
-                                        definitions=definitions, inline_countries=inline_countries, **kwargs)
-        if kwargs.get('with_countries'):
-            table_visitor_partial(visitor_function=self.countries_handler)
+                                        definitions=definitions, inline_groupings=inline_groupings, **kwargs)
+        if kwargs.get('with_group'):
+            table_visitor_partial(visitor_function=self.groupings_handler)
         table_visitor_partial(visitor_function=self.ref_date_handling)
         if kwargs.get('id_flag'):
             table_visitor_partial(visitor_function=self.add_ids)
             wb.save(filename)
-        # check all variables have the same set of countries and that it is the same set as the yaml file dictates
+        # check all variables have the same set of groupings and that it is the same set as the yaml file dictates
         cs = []
         for name in definitions.keys():
             for scenario in definitions[name].keys():
@@ -1114,10 +1105,10 @@ class OpenpyxlTableHandler(TableHandler):
                     if isinstance(definitions[name][scenario][parameter], dict):
                         cs.append(list(definitions[name][scenario][parameter].keys()))
                         break
-        countryset = set(tuple(i) for i in cs)
-        if len(countryset) != 0 and kwargs['countries']:
-            assert tuple(kwargs['countries']) in countryset
-        assert len(countryset) <= 1  # asserts all variables that have country data have the same countries
+        groupset = set(tuple(i) for i in cs)
+        if len(groupset) != 0 and kwargs['groupings']:
+            assert tuple(kwargs['groupings']) in groupset
+        assert len(groupset) <= 1  # asserts all variables that have group data have the same groupings
 
         res = []
         for var_set in definitions.values():
@@ -1240,7 +1231,7 @@ class TableParameterLoader(object):
                         parameter_kwargs_def[param_name_map[k]] = v
                     else:
                         parameter_kwargs_def[k] = v
-                elif kwargs.get('with_countries') and k in kwargs['countries']:
+                elif kwargs.get('with_group') and k in kwargs['groupings']:
                     parameter_kwargs_def[k] = {}
                     for l, w in _def[k].items():
                         if l in param_name_map:
