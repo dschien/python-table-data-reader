@@ -278,6 +278,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         :return:
         """
+        logger.debug(f"generating values for {kwargs['name']}")
         assert 'ref value' in self.kwargs
         # 1. Generate $\mu$
         start_date = self.times[0].to_pydatetime()
@@ -310,7 +311,9 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         if kwargs.get('with_countries'):
             alpha_sigma = {}
             for c in kwargs['countries']:
-                growth_factor = self.kwargs['ef_growth_factor'][c]
+                growth_factor = self.kwargs['ef_growth_factor'][c] if isinstance(self.kwargs['ef_growth_factor'],
+                                                                                 dict) else self.kwargs[
+                    'ef_growth_factor']
                 alpha_sigma[c] = growth_coefficients(start_date,
                                                      end_date,
                                                      ref_date,
@@ -379,10 +382,15 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
     def generate_mu(self, end_date, ref_date, start_date, country=None, **kwargs):
         if self.kwargs['type'] == 'exp':
-            ref_value = self.kwargs['ref value'][country] if country else self.kwargs['ref value']
+            ref_value = self.kwargs['ref value'][country] if country \
+                                                             and isinstance(self.kwargs['ref value'], dict) else \
+                self.kwargs['ref value']
+
             mu_bar = np.full(len(self.times), float(ref_value))
             # 2. Apply Growth to Mean Values $\alpha_{mu}$
-            growth_factor = self.kwargs['growth_factor'][country] if country else self.kwargs['growth_factor']
+            growth_factor = self.kwargs['growth_factor'][country] if country and isinstance(
+                self.kwargs['growth_factor'], dict) \
+                else self.kwargs['growth_factor']
             alpha_mu = growth_coefficients(start_date,
                                            end_date,
                                            ref_date,
@@ -402,7 +410,8 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                 f = interp1d(arr1, arr2, kind=kind, fill_value='extrapolate')
                 return f([toTimestamp(date_val) for date_val in date_range])
 
-            ref_value_ = json.loads(self.kwargs['ref value'][country].strip()) if country else json.loads(
+            ref_value_ = json.loads(self.kwargs['ref value'][country].strip()) if country and isinstance(
+                self.kwargs['ref value'], dict) else json.loads(
                 self.kwargs['ref value'].strip())
             return interpolate(ref_value_, self.times, self.kwargs['param'])
         else:
@@ -824,7 +833,8 @@ class OpenpyxlTableHandler(TableHandler):
         rows = list(sheet.iter_rows())
         return len(rows)
 
-    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, inline_countries=None, id_flag=False, wb=None,
+    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, inline_countries=None, id_flag=False,
+                wb=None,
                 sheet_name=None, countries=[], **kwargs):
         """
         using the id map, assign ids to those variables that have not got an id yet
@@ -834,9 +844,11 @@ class OpenpyxlTableHandler(TableHandler):
 
         name = values["variable"]
         scenario = values['scenario'] if values['scenario'] else "default"
-        country=values['country'] if 'country' in values else None
+        country = values['country'] if 'country' in values else None
         if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (kwargs['countries_flag'] and
-            name in kwargs['country_vars'] and not all(c in self.id_map[name][scenario].keys() for c in countries)):
+                                                                                          name in kwargs[
+                                                                                              'country_vars'] and not all(
+                    c in self.id_map[name][scenario].keys() for c in countries)):
             if not kwargs['countries_flag'] or name not in kwargs['country_vars']:
                 pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
                 self.highest_id += 1
@@ -864,7 +876,8 @@ class OpenpyxlTableHandler(TableHandler):
                         definitions[name][scenario]["id"][country] = pid
                         c = ws.cell(row=row_idx + 2, column=self.id_column)
                         c.value = pid
-                        logger.info("ID " + str(pid) + " given to process " + name + "in scenario" + scenario +" for country "+ country)
+                        logger.info("ID " + str(
+                            pid) + " given to process " + name + "in scenario" + scenario + " for country " + country)
                     else:
                         return None
                 else:
@@ -888,9 +901,9 @@ class OpenpyxlTableHandler(TableHandler):
                                 if key == "scenario":
                                     if cell.value != scenario and (cell.value == "" and scenario == "default"):
                                         flag = False
-                                if key=="country":
-                                    if cell.value!=country:
-                                        flag=False
+                                if key == "country":
+                                    if cell.value != country:
+                                        flag = False
                             if flag == True:
                                 r = i
                                 break
@@ -900,12 +913,13 @@ class OpenpyxlTableHandler(TableHandler):
                         cell = sheet.cell(row=r + 2, column=header.index('id') + 1)
                         cell.value = pid
                         logger.info(
-                            "ID " + str(pid) + " given to process " + name + "in scenario " + scenario + "for country" + c)
+                            "ID " + str(
+                                pid) + " given to process " + name + "in scenario " + scenario + "for country" + c)
 
-    def countries_handler(self, values: Dict = None, inline_countries=None,sheet_name=None, **kwargs):
-        var=values["variable"]
-        c=values["country"]
-        s=values["scenario"] if values["scenario"] else "default"
+    def countries_handler(self, values: Dict = None, inline_countries=None, sheet_name=None, **kwargs):
+        var = values["variable"]
+        c = values["country"]
+        s = values["scenario"] if values["scenario"] else "default"
         if c is not None:
             if var not in inline_countries.keys():
                 inline_countries[var] = {}
@@ -960,7 +974,7 @@ class OpenpyxlTableHandler(TableHandler):
                             self.id_map[name][scenario] = pid
 
         if scenario in definitions[name].keys():
-            #if this is an inline country row the error doesn't need to be raised as it's normal
+            # if this is an inline country row the error doesn't need to be raised as it's normal
             if values['country'] is not None:
                 return None
             logger.error(
@@ -987,7 +1001,7 @@ class OpenpyxlTableHandler(TableHandler):
                         for c in inline_countries[name][scenario].keys():
                             for k in keys:
                                 if inline_countries[name][scenario][c][k] is not None:
-                                    country_values[k][c]=inline_countries[name][scenario][c][k] #do 10005 here
+                                    country_values[k][c] = inline_countries[name][scenario][c][k]  # do 10005 here
                                 else:
                                     country_values[k][c] = values[k]
                 else:
@@ -1004,7 +1018,7 @@ class OpenpyxlTableHandler(TableHandler):
                                     country_values[k][temp_values["country"]] = temp_values[k]
                                 else:
                                     country_values[k][temp_values["country"]] = values[k]
-                                if k=='id' and id_flag:
+                                if k == 'id' and id_flag:
                                     self.id_map[name][scenario][temp_values['country']] = temp_values['id']
                                     if temp_values['id'] > self.highest_id:
                                         self.highest_id = temp_values['id']
@@ -1083,16 +1097,16 @@ class OpenpyxlTableHandler(TableHandler):
             self.version = version
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
-        inline_countries={}
+        inline_countries = {}
         table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
-                                        definitions=definitions, inline_countries=inline_countries,  **kwargs)
+                                        definitions=definitions, inline_countries=inline_countries, **kwargs)
         if kwargs.get('with_countries'):
             table_visitor_partial(visitor_function=self.countries_handler)
         table_visitor_partial(visitor_function=self.ref_date_handling)
         if kwargs.get('id_flag'):
             table_visitor_partial(visitor_function=self.add_ids)
             wb.save(filename)
-        #check all variables have the same set of countries and that it is the same set as the yaml file dictates
+        # check all variables have the same set of countries and that it is the same set as the yaml file dictates
         cs = []
         for name in definitions.keys():
             for scenario in definitions[name].keys():
