@@ -309,10 +309,9 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         # 4. Prepare growth array for $\alpha_{sigma}$
         if kwargs.get('with_group'):
             alpha_sigma = {}
-            for c in kwargs['countries']:
+            for c in kwargs['groupings']:
                 growth_factor = self.kwargs['ef_growth_factor'][c] if isinstance(self.kwargs['ef_growth_factor'],
-                                                                                 dict) else self.kwargs[
-                    'ef_growth_factor']
+                                                                                 dict) else self.kwargs['ef_growth_factor']
                 # growth_factor = self.kwargs['ef_growth_factor'][c]
                 alpha_sigma[c] = growth_coefficients(start_date,
                                                      end_date,
@@ -841,7 +840,9 @@ class OpenpyxlTableHandler(TableHandler):
         scenario = values['scenario'] if values['scenario'] else "default"
         group = values['group'] if 'group' in values else None
         if name not in self.id_map.keys() or scenario not in self.id_map[name].keys() or (kwargs['group_flag'] and
-            name in kwargs['group_vars'] and not all(c in self.id_map[name][scenario].keys() for c in groupings)):
+                                                                                          name in kwargs[
+                                                                                              'group_vars'] and not all(
+                    c in self.id_map[name][scenario].keys() for c in groupings)):
             if not kwargs['group_flag'] or name not in kwargs['group_vars']:
                 pid = self.highest_id + 1  # Set id to the highest existing ID plus 1
                 self.highest_id += 1
@@ -906,7 +907,8 @@ class OpenpyxlTableHandler(TableHandler):
                         cell = sheet.cell(row=r + 2, column=header.index('id') + 1)
                         cell.value = pid
                         logger.info(
-                            "ID " + str(pid) + " given to process " + name + "in scenario " + scenario + "for group" + c)
+                            "ID " + str(
+                                pid) + " given to process " + name + "in scenario " + scenario + "for group" + c)
 
     def groupings_handler(self, values: Dict = None, inline_groupings=None, sheet_name=None, **kwargs):
         var = values["variable"]
