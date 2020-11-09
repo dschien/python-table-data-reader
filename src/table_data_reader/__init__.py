@@ -1107,9 +1107,9 @@ class OpenpyxlTableHandler(TableHandler):
                     if isinstance(definitions[name][scenario][parameter], dict):
                         cs.append(list(definitions[name][scenario][parameter].keys()))
                         break
-        groupset = set(tuple(i) for i in cs)
+        groupset = set(frozenset(i) for i in cs)
         if len(groupset) != 0 and kwargs['groupings']:
-            assert tuple(kwargs['groupings']) in groupset
+            assert set(kwargs['groupings']) in groupset
         assert len(groupset) <= 1  # asserts all variables that have group data have the same groupings
 
         res = []
