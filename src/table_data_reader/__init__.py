@@ -216,10 +216,10 @@ class Parameter(object):
             else:
                 generator = DistributionFunctionGenerator(**common_args)
 
-            # this is a group variable
+            # is this is a group variable?
             # @todo refactor - use 'with_group' as a global switch and auto-lookup country variables as you go along
             if settings.get('with_group'):
-                kwargs['with_group'] = settings['with_group']
+                kwargs['with_group'] = settings['with_group'] and kwargs['name'] in settings.get('group_vars')
                 kwargs['group_flag'] = kwargs['name'] in settings['group_vars']
                 kwargs['groupings'] = settings['groupings'] if 'groupings' in settings else None
             self.cache = generator.generate_values(*args, **kwargs)
