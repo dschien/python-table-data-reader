@@ -28,7 +28,7 @@ install_requirements = [
     'scipy',
     'xlrd',
     'pandas==0.24.2',
-    'numpy',
+    'numpy==1.18.0',
     'python-dateutil',
 ]
 
