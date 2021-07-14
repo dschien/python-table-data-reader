@@ -21,6 +21,10 @@ jobs:
       - python/save-cache
 
       - run:
+          name: install setup
+          command: |
+            pip install .
+      - run:
           name: Test
           command: pytest
 
