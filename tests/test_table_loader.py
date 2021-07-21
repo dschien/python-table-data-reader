@@ -5,8 +5,10 @@ import numpy as np
 import pandas as pd
 from dateutil import relativedelta
 from os import path
-from table_data_reader import TableParameterLoader, ParameterRepository, growth_coefficients
 
+from scipy import stats
+import pint
+from table_data_reader import TableParameterLoader, ParameterRepository, growth_coefficients
 
 def get_static_path(filename):
     """
@@ -29,8 +31,7 @@ class CSVParameterLoaderTestCase(unittest.TestCase):
                     'sample_mean_value': False, 'use_time_series': True}
         val = p(settings)
 
-        n = val.mean(level='time').mean()
-        assert n > 0.7
+        assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
     def test_parameter_getvalue_exp_units(self):
         repository = ParameterRepository()
@@ -40,10 +41,8 @@ class CSVParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2016-01-01', '2017-01-01', freq='MS'),
                     'sample_mean_value': False, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings)
-        series = val.pint.m
-        n = series.mean(level='time').mean()
-        assert n > 0.7
+        val = p(settings).data
+        assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
 
 class PandasCSVParameterLoaderTestCase(unittest.TestCase):
@@ -56,10 +55,8 @@ class PandasCSVParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2016-01-01', '2017-01-01', freq='MS'),
                     'sample_mean_value': False, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings)
-        series = val.pint.m
-        n = series.mean(level='time').mean()
-        assert n > 0.7
+        val = p(settings).data
+        assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
 
 class ExcelParameterLoaderTestCase(unittest.TestCase):
@@ -73,11 +70,8 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2016-01-01', '2017-01-01', freq='MS'),
                     'sample_mean_value': False, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings)
-        series = val.pint.m
-        n = series.mean(level='time').mean()
-        print(n)
-        assert n > 0.7
+        val = p(settings).data
+        assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
     def test_parameter_getvalue_linear(self):
         repository = ParameterRepository()
@@ -88,9 +82,9 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2010-01-01', '2010-12-01', freq='MS'),
                     'sample_mean_value': False, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings)
-        series = val.pint.m
-        n = series.mean(level='time').mean()
+
+        val = p(settings).pint.m
+        n = val.mean(level='time').mean()
         assert n > 0.7
 
     def test_parameter_getvalue_mean(self):
@@ -102,11 +96,8 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2010-01-01', '2010-12-01', freq='MS'),
                     'sample_mean_value': True, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings)
-        series = val.pint.m
-        n = series.mean(level='time').mean()
-
-        assert n > 0.7
+        val = p(settings).data
+        assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
     def test_column_order(self):
         repository = ParameterRepository()
@@ -147,7 +138,6 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
         p = repository.get_parameter('choice_var')
         val = p()
-        # print(val)
         assert (val == .9).all()
 
     def test_choice_two_params_with_time(self):
@@ -157,11 +147,8 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
         loader.load_into_repo(sheet_name='Sheet1', repository=repository)
         tag_param_dict = repository.find_by_tag('user')
         keys = tag_param_dict.keys()
-        print(keys)
         assert 'a' in keys
         repository['a']()
-
-        print(tag_param_dict['a'])
 
     def test_uniform(self):
         repository = ParameterRepository()
@@ -178,8 +165,6 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
                              ).load_into_repo(sheet_name='Sheet1', repository=repository)
         p = repository.get_parameter('b')
         val = p()
-        print(val)
-        print(type(val))
 
         assert (val >= 2).all() & (val <= 4).all()
 
@@ -191,7 +176,6 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
         val = p({'sample_mean_value': True, 'sample_size': 5})
 
-        print(val)
         assert (val == 3).all()
 
     def test_uniform_mean_growth(self):
@@ -217,9 +201,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
                     'times': pd.date_range('2009-01-01', '2010-01-01', freq='MS'), 'with_pint_units': True}
         val = p(settings)
         val = val.pint.m
-        print(val)
-        n = np.mean(val)
-        assert n > 0.7
+        assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
     def test_triagular(self):
         repository = ParameterRepository()
@@ -260,7 +242,6 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
         res = p(settings)
         res = res.pint.m
-        print(res)
         assert (res < 10.).all() & (res > 3.).all()
 
 
@@ -298,7 +279,6 @@ class TestCAGRCalculation(unittest.TestCase):
         end_date = date(2010, 1, 1)
 
         a = growth_coefficients(start_date, end_date, ref_date, alpha, samples)
-        print(a)
         assert np.all(a[0] == np.ones((samples, 1)))
         assert np.all(a[1] == np.ones((samples, 1)) * pow(1 + alpha, 1. / 12))
 
@@ -316,7 +296,6 @@ class TestCAGRCalculation(unittest.TestCase):
         end_date = date(2010, 1, 1)
 
         a = growth_coefficients(start_date, end_date, ref_date, alpha, samples)
-        print(a)
         assert np.all(a[0] == np.ones((samples, 1)))
         assert np.all(a[1] == np.ones((samples, 1)) * pow(1 + alpha, 1. / 12))
 
@@ -333,7 +312,6 @@ class TestCAGRCalculation(unittest.TestCase):
         start_date = date(2009, 1, 1)
         end_date = date(2010, 1, 1)
         a = growth_coefficients(start_date, end_date, ref_date, alpha, samples)
-        print(a)
         assert np.all(a[0] == np.ones((samples, 1)))
         assert np.all(a[-1] == np.ones((samples, 1)) * 1 + alpha)
 
@@ -377,7 +355,6 @@ class TestCAGRCalculation(unittest.TestCase):
         ref_row_idx = ref_delta.months + ref_delta.years * 12
 
         a = growth_coefficients(start_date, end_date, ref_date, alpha, samples)
-        # print a
 
         assert a.shape == (total_months, samples)
         # the ref_row_idx has all ones
