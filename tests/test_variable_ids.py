@@ -35,23 +35,38 @@ def get_diff_then_make_files_equal(a, b):
     return diff
 
 
+def get_static_path(filename):
+    """
+    Direct copy of the function in eam-core-provenance/tests/directory_test_controller.py
+
+    The working directory changes depending on how tests are run.
+    Since tests call models and xlsx files with static paths, this can lead to many tests incorrectly failing
+    Instead, get the current script directory- which should point to /tests- and join it with the desired filename.
+
+    :param filename: The file to be loaded by the test, with pathing relative to /tests
+    :return: A more reliable static path to that file
+    """
+    directory = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(directory, filename)
+
+
 class TestVariableIDs(unittest.TestCase):
 
     def test_existing_ids(self):
         handler = OpenpyxlTableHandler()
-        create_temp_copy("tests/data/existing_ids.xlsx")
-        handler.load_definitions("params", filename="tests/data/existing_ids_copy.xlsx", id_flag=True)
-        diff = get_diff_then_make_files_equal("tests/data/existing_ids.xlsx", "tests/data/existing_ids_copy.xlsx")
+        create_temp_copy(get_static_path('data/existing_ids.xlsx'))
+        handler.load_definitions("params", filename=get_static_path('data/existing_ids_copy.xlsx'), id_flag=True)
+        diff = get_diff_then_make_files_equal(get_static_path('data/existing_ids.xlsx'), get_static_path('data/existing_ids_copy.xlsx'))
         assert handler.id_map == {'power_latop': {'default': 0, "S1": 1},
                                   'energy_intensity_network': {'default': 2}}
         assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
 
     def test_some_existing_ids(self):
         handler = OpenpyxlTableHandler()
-        create_temp_copy("tests/data/some_existing_ids.xlsx")
-        handler.load_definitions("params", filename="tests/data/some_existing_ids_copy.xlsx", id_flag=True)
-        diff = get_diff_then_make_files_equal("tests/data/some_existing_ids.xlsx",
-                                              "tests/data/some_existing_ids_copy.xlsx")
+        create_temp_copy(get_static_path('data/some_existing_ids.xlsx'))
+        handler.load_definitions("params", filename=get_static_path('data/some_existing_ids_copy.xlsx'), id_flag=True)
+        diff = get_diff_then_make_files_equal(get_static_path('data/some_existing_ids.xlsx'),
+                                              get_static_path('data/some_existing_ids_copy.xlsx'))
         assert handler.id_map == {'power_latop': {'default': 0}, 'time_laptop': {'default': 3},
                                   'energy_intensity_network': {'default': 2}}
         assert (str(diff[
@@ -59,24 +74,25 @@ class TestVariableIDs(unittest.TestCase):
 
     def test_no_existing_ids(self):
         handler = OpenpyxlTableHandler()
-        create_temp_copy("tests/data/no_existing_ids.xlsx")
-        handler.load_definitions("params", filename="tests/data/no_existing_ids_copy.xlsx", id_flag=True)
-        diff = get_diff_then_make_files_equal("tests/data/no_existing_ids.xlsx", "tests/data/no_existing_ids_copy.xlsx")
+        create_temp_copy(get_static_path('data/no_existing_ids.xlsx'))
+        handler.load_definitions("params", filename=get_static_path('data/no_existing_ids_copy.xlsx'), id_flag=True)
+        diff = get_diff_then_make_files_equal(get_static_path('data/no_existing_ids.xlsx'), get_static_path('data/no_existing_ids_copy.xlsx'))
         assert handler.id_map == {'power_latop': {'default': 0, 'S1': 1}}
         assert (str(
             diff[
                 'type_changes']) == "{'root[0][1][18]._value': {'old_type': <class 'int'>, 'new_type': <class 'NoneType'>, 'old_value': 0, 'new_value': None}, 'root[0][2][18]._value': {'old_type': <class 'int'>, 'new_type': <class 'NoneType'>, 'old_value': 1, 'new_value': None}}")
+
     def test_duplicate_ids(self):
         with self.assertRaises(Exception) as context:
             handler = OpenpyxlTableHandler()
-            handler.load_definitions("params", filename="tests/data/duplicate_ids.xlsx", id_flag=True)
+            handler.load_definitions("params", filename=get_static_path('data/duplicate_ids.xlsx'), id_flag=True)
         self.assertTrue("Duplicate ID variable " in str(context.exception))
 
     def test_no_id_flag(self):
         handler = OpenpyxlTableHandler()
-        create_temp_copy("tests/data/no_existing_ids.xlsx")
-        handler.load_definitions("params", filename="tests/data/no_existing_ids_copy.xlsx")
-        diff = get_diff_then_make_files_equal("tests/data/no_existing_ids.xlsx",
-                                              "tests/data/no_existing_ids_copy.xlsx")
+        create_temp_copy(get_static_path('data/no_existing_ids.xlsx'))
+        handler.load_definitions("params", filename=get_static_path('data/no_existing_ids_copy.xlsx'))
+        diff = get_diff_then_make_files_equal(get_static_path('data/no_existing_ids.xlsx'),
+                                              get_static_path('data/no_existing_ids_copy.xlsx'))
         assert handler.id_map == {}
         assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
