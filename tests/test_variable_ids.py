@@ -38,13 +38,7 @@ def get_diff_then_make_files_equal(a, b):
 def get_static_path(filename):
     """
     Direct copy of the function in eam-core-provenance/tests/directory_test_controller.py
-
-    The working directory changes depending on how tests are run.
-    Since tests call models and xlsx files with static paths, this can lead to many tests incorrectly failing
-    Instead, get the current script directory- which should point to /tests- and join it with the desired filename.
-
-    :param filename: The file to be loaded by the test, with pathing relative to /tests
-    :return: A more reliable static path to that file
+    Get the current script directory- which should point to /tests- and join it with the desired filename, then return
     """
     directory = os.path.dirname(os.path.realpath(__file__))
     return os.path.join(directory, filename)
