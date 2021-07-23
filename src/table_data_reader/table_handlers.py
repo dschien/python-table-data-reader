@@ -282,6 +282,8 @@ class OpenpyxlTableHandler(TableHandler):
                     name].keys()) or (name in kwargs['group_vars'] and group not in self.id_map[
                     name][scenario].keys()):
                     # raises exception if the ID already exists
+                    # TODO: doesn't detect duplicates in groups
+                    # ends up comparing the id against a dictionary, which is always false
                     if (any(pid in d.values() for d in self.id_map.values())):
                         raise Exception("Duplicate ID variable " + name)
                     else:
