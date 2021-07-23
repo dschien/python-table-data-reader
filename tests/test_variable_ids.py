@@ -1,9 +1,11 @@
 import unittest
 import openpyxl
-from table_data_reader import OpenpyxlTableHandler
+import table_data_reader
 from deepdiff import DeepDiff
 import os
 import re
+
+from table_data_reader.table_handlers import OpenpyxlTableHandler
 
 
 def create_temp_copy(original):

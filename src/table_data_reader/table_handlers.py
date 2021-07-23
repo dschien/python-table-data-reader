@@ -226,7 +226,7 @@ class OpenpyxlTableHandler(TableHandler):
                                 if key == "group":
                                     if cell.value != group:
                                         flag = False
-                            if flag == True:
+                            if flag:
                                 r = i
                                 break
                         if r == -1:
