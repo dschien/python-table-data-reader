@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List, Dict
 from collections import namedtuple
 from openpyxl import load_workbook
-from table_data_reader import OpenpyxlTableHandler
+from table_data_reader.table_handlers import OpenpyxlTableHandler
 
 import logging
 
