@@ -52,111 +52,212 @@ class TestVariableIDs(unittest.TestCase):
         handler = OpenpyxlTableHandler()
         create_temp_copy(get_static_path('data/existing_ids.xlsx'))
 
-        handler.load_definitions("params",
-                                 filename=get_static_path('data/existing_ids_copy.xlsx'),
-                                 id_flag=True)
+        try:
+            handler.load_definitions("params",
+                                    filename=get_static_path('data/existing_ids_copy.xlsx'),
+                                    id_flag=True)
+        except Exception as err:
+            delete_temp_copy(get_static_path('data/existing_ids_copy.xlsx'))
+            raise err
+        else:
+            diff = get_diff(get_static_path('data/existing_ids.xlsx'),
+                            get_static_path('data/existing_ids_copy.xlsx'))
 
-        diff = get_diff(get_static_path('data/existing_ids.xlsx'),
-                        get_static_path('data/existing_ids_copy.xlsx'))
+            delete_temp_copy(get_static_path('data/existing_ids_copy.xlsx'))
 
-        delete_temp_copy(get_static_path('data/existing_ids_copy.xlsx'))
-
-        assert handler.id_map == {
-            'power_laptop': {
-                'default': 0,
-                'S1': 1
-            },
-            'energy_intensity_network': {
-                'default': 2
+            assert handler.id_map == {
+                'power_laptop': {
+                    'default': 0,
+                    'S1': 1
+                },
+                'energy_intensity_network': {
+                    'default': 2
+                }
             }
-        }
 
-        assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
+            assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
 
     def test_existing_ids_group(self):
         handler = OpenpyxlTableHandler()
         create_temp_copy(get_static_path('data/existing_ids_group.xlsx'))
 
-        handler.load_definitions("params",
-                                 filename=get_static_path('data/existing_ids_group_copy.xlsx'),
-                                 id_flag=True,
-                                 with_group=True,
-                                 groupings=['UK', 'DE'],
-                                 group_vars=['power_laptop', 'energy_intensity_network'])
+        try:
+            handler.load_definitions("params",
+                                    filename=get_static_path('data/existing_ids_group_copy.xlsx'),
+                                    id_flag=True,
+                                    with_group=True,
+                                    groupings=['UK', 'DE'],
+                                    group_vars=['power_laptop', 'energy_intensity_network'])
+        except Exception as err:
+            delete_temp_copy(get_static_path('data/existing_ids_group_copy.xlsx'))
+            raise err
+        else:
+            diff = get_diff(get_static_path('data/existing_ids_group.xlsx'),
+                            get_static_path('data/existing_ids_group_copy.xlsx'))
 
-        diff = get_diff(get_static_path('data/existing_ids_group.xlsx'),
-                        get_static_path('data/existing_ids_group_copy.xlsx'))
+            delete_temp_copy(get_static_path('data/existing_ids_group_copy.xlsx'))
 
-        delete_temp_copy(get_static_path('data/existing_ids_group_copy.xlsx'))
-
-        assert handler.id_map == {
-            'power_laptop': {
-                'default': {
-                    'overall': 0,
-                    'UK': 1,
-                    'DE': 2
-                }
-            },
-            'energy_intensity_network': {
-                'default': {
-                    'overall': 3,
-                    'UK': 4,
-                    'DE': 5
+            assert handler.id_map == {
+                'power_laptop': {
+                    'default': {
+                        'overall': 0,
+                        'UK': 1,
+                        'DE': 2
+                    }
+                },
+                'energy_intensity_network': {
+                    'default': {
+                        'overall': 3,
+                        'UK': 4,
+                        'DE': 5
+                    }
                 }
             }
-        }
 
-        assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
+            assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
 
     def test_some_existing_ids(self):
         handler = OpenpyxlTableHandler()
         create_temp_copy(get_static_path('data/some_existing_ids.xlsx'))
 
-        handler.load_definitions("params",
-                                 filename=get_static_path('data/some_existing_ids_copy.xlsx'),
-                                 id_flag=True)
+        try:
+            handler.load_definitions("params",
+                                    filename=get_static_path('data/some_existing_ids_copy.xlsx'),
+                                    id_flag=True)
+        except Exception as err:
+            delete_temp_copy(get_static_path('data/some_existing_ids_copy.xlsx'))
+            raise err
+        else:
+            diff = get_diff(get_static_path('data/some_existing_ids.xlsx'),
+                            get_static_path('data/some_existing_ids_copy.xlsx'))
 
-        diff = get_diff(get_static_path('data/some_existing_ids.xlsx'),
-                        get_static_path('data/some_existing_ids_copy.xlsx'))
+            delete_temp_copy(get_static_path('data/some_existing_ids_copy.xlsx'))
 
-        delete_temp_copy(get_static_path('data/some_existing_ids_copy.xlsx'))
-
-        assert handler.id_map == {
-            'power_laptop': {
-                'default': 0
-            },
-            'time_laptop': {
-                'default': 3
-            },
-            'energy_intensity_network': {
-                'default': 2
+            assert handler.id_map == {
+                'power_laptop': {
+                    'default': 0
+                },
+                'time_laptop': {
+                    'default': 3
+                },
+                'energy_intensity_network': {
+                    'default': 2
+                }
             }
-        }
 
-        assert diff['type_changes']['root[0][2][18]._value']['new_value'] == 3
+            assert diff['type_changes']['root[0][2][18]._value']['new_value'] == 3
+
+    def test_some_existing_ids_group(self):
+        handler = OpenpyxlTableHandler()
+        create_temp_copy(get_static_path('data/some_existing_ids_group.xlsx'))
+
+        try:
+            handler.load_definitions("params",
+                                    filename=get_static_path('data/some_existing_ids_group_copy.xlsx'),
+                                    id_flag=True,
+                                    with_group=True,
+                                    groupings=['UK', 'DE'],
+                                    group_vars=['power_laptop', 'energy_intensity_network'])
+        except Exception as err:
+            delete_temp_copy(get_static_path('data/some_existing_ids_group_copy.xlsx'))
+            raise err
+        else:
+            diff = get_diff(get_static_path('data/some_existing_ids_group.xlsx'),
+                            get_static_path('data/some_existing_ids_group_copy.xlsx'))
+
+            delete_temp_copy(get_static_path('data/some_existing_ids_group_copy.xlsx'))
+
+            assert handler.id_map == {
+                'power_laptop': {
+                    'default': {
+                        'overall': 0,
+                        'UK': 5,
+                        'DE': 2
+                    }
+                },
+                'energy_intensity_network': {
+                    'default': {
+                        'overall': 6,
+                        'UK': 4,
+                        'DE': 7
+                    }
+                }
+            }
+
+            assert diff['type_changes']['root[0][2][19]._value']['new_value'] == 5
+            assert diff['type_changes']['root[0][4][19]._value']['new_value'] == 6
+            assert diff['type_changes']['root[1][2][6]._value']['new_value'] == 7
 
     def test_no_existing_ids(self):
         handler = OpenpyxlTableHandler()
         create_temp_copy(get_static_path('data/no_existing_ids.xlsx'))
 
-        handler.load_definitions("params",
-                                 filename=get_static_path('data/no_existing_ids_copy.xlsx'),
-                                 id_flag=True)
+        try:
+            handler.load_definitions("params",
+                                    filename=get_static_path('data/no_existing_ids_copy.xlsx'),
+                                    id_flag=True)
+        except Exception as err:
+            delete_temp_copy(get_static_path('data/no_existing_ids_copy.xlsx'))
+            raise err
+        else:
+            diff = get_diff(get_static_path('data/no_existing_ids.xlsx'),
+                            get_static_path('data/no_existing_ids_copy.xlsx'))
 
-        diff = get_diff(get_static_path('data/no_existing_ids.xlsx'),
-                        get_static_path('data/no_existing_ids_copy.xlsx'))
+            delete_temp_copy(get_static_path('data/no_existing_ids_copy.xlsx'))
 
-        delete_temp_copy(get_static_path('data/no_existing_ids_copy.xlsx'))
-
-        assert handler.id_map == {
-            'power_laptop': {
-                'default': 0,
-                'S1': 1
+            assert handler.id_map == {
+                'power_laptop': {
+                    'default': 0,
+                    'S1': 1
+                }
             }
-        }
 
-        assert diff['type_changes']['root[0][1][18]._value']['new_value'] == 0
-        assert diff['type_changes']['root[0][2][18]._value']['new_value'] == 1
+            assert diff['type_changes']['root[0][1][18]._value']['new_value'] == 0
+            assert diff['type_changes']['root[0][2][18]._value']['new_value'] == 1
+
+    def test_no_existing_ids_group(self):
+        handler = OpenpyxlTableHandler()
+        create_temp_copy(get_static_path('data/no_existing_ids_group.xlsx'))
+
+        try:
+            handler.load_definitions("params",
+                                    filename=get_static_path('data/no_existing_ids_group_copy.xlsx'),
+                                    id_flag=True,
+                                    with_group=True,
+                                    groupings=['UK', 'DE'],
+                                    group_vars=['power_laptop', 'energy_intensity_network'])
+        except Exception as err:
+            delete_temp_copy(get_static_path('data/no_existing_ids_group_copy.xlsx'))
+            raise err
+        else:
+            diff = get_diff(get_static_path('data/no_existing_ids_group.xlsx'),
+                            get_static_path('data/no_existing_ids_group_copy.xlsx'))
+
+            delete_temp_copy(get_static_path('data/no_existing_ids_group_copy.xlsx'))
+
+            assert handler.id_map == {
+                'power_laptop': {
+                    'default': {
+                        'overall': 0,
+                        'UK': 1,
+                        'DE': 2
+                    }
+                },
+                'energy_intensity_network': {
+                    'default': {
+                        'overall': 3,
+                        'UK': 4,
+                        'DE': 5
+                    }
+                }
+            }
+
+            assert diff['type_changes']['root[0][1][19]._value']['new_value'] == 0
+            assert diff['type_changes']['root[0][2][19]._value']['new_value'] == 1
+            assert diff['type_changes']['root[0][3][19]._value']['new_value'] == 2
+            assert diff['type_changes']['root[0][4][19]._value']['new_value'] == 3
+            assert diff['type_changes']['root[1][1][6]._value']['new_value'] == 4
+            assert diff['type_changes']['root[1][2][6]._value']['new_value'] == 5
 
     def test_duplicate_ids(self):
         with self.assertRaises(Exception) as context:
@@ -164,15 +265,31 @@ class TestVariableIDs(unittest.TestCase):
             handler.load_definitions("params", filename=get_static_path('data/duplicate_ids.xlsx'), id_flag=True)
         self.assertTrue("Duplicate ID variable " in str(context.exception))
 
+    def test_duplicate_ids_group(self):
+        with self.assertRaises(Exception) as context:
+            handler = OpenpyxlTableHandler()
+            handler.load_definitions("params",
+                                     filename=get_static_path('data/duplicate_ids_group.xlsx'),
+                                     id_flag=True,
+                                     with_group=True,
+                                     groupings=['UK', 'DE'],
+                                     group_vars=['power_laptop', 'energy_intensity_network'])
+
+        self.assertTrue("Duplicate ID variable " in str(context.exception))
+
     def test_no_id_flag(self):
         handler = OpenpyxlTableHandler()
         create_temp_copy(get_static_path('data/no_existing_ids.xlsx'))
 
-        handler.load_definitions("params", filename=get_static_path('data/no_existing_ids_copy.xlsx'))
+        try:
+            handler.load_definitions("params", filename=get_static_path('data/no_existing_ids_copy.xlsx'))
+        except Exception as err:
+            delete_temp_copy(get_static_path('data/no_existing_ids_copy.xlsx'))
+            raise err
+        else:
+            diff = get_diff(get_static_path('data/no_existing_ids.xlsx'),
+                            get_static_path('data/no_existing_ids_copy.xlsx'))
 
-        diff = get_diff(get_static_path('data/no_existing_ids.xlsx'),
-                        get_static_path('data/no_existing_ids_copy.xlsx'))
+            delete_temp_copy(get_static_path('data/no_existing_ids_copy.xlsx'))
 
-        delete_temp_copy(get_static_path('data/no_existing_ids_copy.xlsx'))
-
-        assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
+            assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
