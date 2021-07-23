@@ -8,7 +8,8 @@ from os import path
 
 from scipy import stats
 import pint
-from table_data_reader import TableParameterLoader, ParameterRepository, growth_coefficients
+from table_data_reader import ParameterRepository, growth_coefficients
+from table_data_reader.table_handlers import TableParameterLoader
 
 def get_static_path(filename):
     """

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from table_data_reader import ParameterRepository, TableParameterLoader
-from table_data_reader.table_data_writer import TableWriter
+from table_data_reader import ParameterRepository
+from table_data_reader.table_data_writer import TableWriter, TableParameterLoader
 
 
 class MyTestCase(unittest.TestCase):
