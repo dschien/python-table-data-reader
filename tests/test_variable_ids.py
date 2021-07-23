@@ -67,7 +67,7 @@ class TestVariableIDs(unittest.TestCase):
                                  id_flag=True,
                                  with_group=True,
                                  groupings=['UK', 'DE'],
-                                 group_vars=['power_laptop'])
+                                 group_vars=['power_laptop', 'energy_intensity_network'])
 
         diff = get_diff(get_static_path('data/existing_ids_group.xlsx'),
                         get_static_path('data/existing_ids_group_copy.xlsx'))
@@ -83,7 +83,11 @@ class TestVariableIDs(unittest.TestCase):
                 }
             },
             'energy_intensity_network': {
-                'default': 3
+                'default': {
+                    'overall': 3,
+                    'UK': 4,
+                    'DE': 5
+                }
             }
         }
 
