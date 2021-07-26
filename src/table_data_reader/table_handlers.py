@@ -152,6 +152,11 @@ class OpenpyxlTableHandler(TableHandler):
                 sheet_name=None, groupings=[], **kwargs):
         """
         using the id map, assign ids to those variables that have not got an id yet
+
+        values: dictionary with spreadsheet columns as keys and values as parameter values
+        definitions: dictionary of all the values for each variable key
+        inline_groupings: dict[variable][scenario][group] for storing individual group values
+        id_map: dictionary with variable name keys and as a value, a dictionary mapping scenarios to a dictionary of groups and their ids
         :return:
         :rtype:
         """
@@ -171,6 +176,7 @@ class OpenpyxlTableHandler(TableHandler):
                 logger.debug(f'{name} {scenario}: {values}')
                 definitions[name][scenario]["id"] = pid
                 c = ws.cell(row=row_idx + 2, column=self.id_column)
+                # overwrites workbook cell!
                 c.value = pid
                 logger.info("ID " + str(pid) + " given to process " + name + "in scenario" + scenario)
             else:
