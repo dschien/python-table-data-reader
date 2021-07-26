@@ -147,14 +147,6 @@ class OpenpyxlTableHandler(TableHandler):
         self.id_map = defaultdict(lambda: defaultdict(dict))
         self.id_column = None
 
-    @staticmethod
-    def get_sheet_range_bounds(filename, sheet_name):
-        import openpyxl
-        wb = openpyxl.load_workbook(filename)
-        sheet = wb[sheet_name]
-        rows = list(sheet.iter_rows())
-        return len(rows)
-
     def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, inline_groupings=None, id_flag=False,
                 wb=None,
                 sheet_name=None, groupings=[], **kwargs):
@@ -239,25 +231,53 @@ class OpenpyxlTableHandler(TableHandler):
                                 pid) + " given to process " + name + "in scenario " + scenario + "for group" + c)
 
     def groupings_handler(self, values: Dict = None, inline_groupings=None, sheet_name=None, **kwargs):
+        """
+        Mutates the inline_groupings dictionary to store group-level variable values
+        Dictionary is organised as dict[variable][scenario][group]
+        :param values:
+        :param inline_groupings:
+        :param sheet_name:
+        :param kwargs:
+        :return:
+        """
+
         var = values["variable"]
-        c = values["group"]
-        s = values["scenario"] if values["scenario"] else "default"
-        if c is not None:
+        group = values["group"]
+        scenario = values["scenario"] if values["scenario"] else "default"
+        if group is not None:
             if var not in inline_groupings.keys():
                 inline_groupings[var] = {}
-            if s not in inline_groupings[var].keys():
-                inline_groupings[var][s] = {}
-            if c in inline_groupings[var][s].keys():
+            if scenario not in inline_groupings[var].keys():
+                inline_groupings[var][scenario] = {}
+            if group in inline_groupings[var][scenario].keys():
                 logger.error(
                     f"Duplicate entry for parameter "
-                    f"with name <{var}>,<{c}> scenario, and <{s}> group in sheet {sheet_name}")
+                    f"with name <{var}>,<{group}> scenario, and <{scenario}> group in sheet {sheet_name}")
                 raise ValueError(
                     f"Duplicate entry for parameter "
-                    f"with name <{var}>,<{c}> scenario, and <{s}> group in sheet {sheet_name}")
-            inline_groupings[var][s][c] = values
+                    f"with name <{var}>,<{group}> scenario, and <{scenario}> group in sheet {sheet_name}")
+            inline_groupings[var][scenario][group] = values
 
     def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
                           group_flag=False, inline_groupings=None, wb=None, **kwargs):
+        """
+        This function does three distinct things:
+        1. Truncates ref dates to the beginning of the month
+        2. Builds an id map and finds the largest id (if id_flag is on)
+        3. Assigns group-level dictionaries to parameter values in definitions with weird dictionary stuff
+
+        THIS SHOULD BE REWRITTEN/REFACTORED!
+
+        :param values:
+        :param definitions:
+        :param sheet_name:
+        :param id_flag:
+        :param group_flag:
+        :param inline_groupings:
+        :param wb:
+        :param kwargs:
+        :return:
+        """
 
         if 'ref date' in values and values['ref date']:
             if isinstance(values['ref date'], datetime.datetime):
@@ -346,6 +366,9 @@ class OpenpyxlTableHandler(TableHandler):
                                     self.id_map[name][scenario][temp_values['group']] = temp_values['id']
                                     if temp_values['id'] > self.highest_id:
                                         self.highest_id = temp_values['id']
+
+                # todo: is it important that ref dates for groups must all have the same value?
+                # replace this with .all() and assignment, etc.
                 refdates = set(group_values['ref date'].values())
                 assert len(refdates) == 1
                 group_values['ref date'] = refdates.pop()
@@ -355,6 +378,7 @@ class OpenpyxlTableHandler(TableHandler):
                       definitions=None, **kwargs):
         """
         stub for id management
+        # todo: try and remove checks for specific kwargs to allow for more generic visitor functionality
 
         :param definitions:
         :param wb:
@@ -404,8 +428,8 @@ class OpenpyxlTableHandler(TableHandler):
         :param id_flag:
         :return:
         """
-        import openpyxl
-        wb = openpyxl.load_workbook(filename, data_only=True)
+        from openpyxl import load_workbook
+        wb = load_workbook(filename, data_only=True)
 
         definitions = defaultdict(lambda: defaultdict(dict))
         _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
@@ -430,6 +454,8 @@ class OpenpyxlTableHandler(TableHandler):
             table_visitor_partial(visitor_function=self.add_ids)
             wb.save(filename)
         # check all variables have the same set of groupings and that it is the same set as the yaml file dictates
+        # todo: this might not work for countries not listed in the yaml, write a test or more experimenting?
+        # weird way of doing this; there might be a better approach requiring less iteration
         cs = []
         for name in definitions.keys():
             for scenario in definitions[name].keys():
@@ -453,6 +479,14 @@ class OpenpyxlTableHandler(TableHandler):
 
 
 class XLWingsTableHandler(TableHandler):
+    @staticmethod
+    def get_sheet_range_bounds(filename, sheet_name):
+        from openpyxl import load_workbook
+        wb = load_workbook(filename)
+        sheet = wb[sheet_name]
+        rows = list(sheet.iter_rows())
+        return len(rows)
+
     def load_definitions(self, sheet_name, filename=None, id_flag=False):
         import xlwings as xw
         definitions = []
@@ -468,7 +502,7 @@ class XLWingsTableHandler(TableHandler):
             if header[0] != 'variable':
                 continue
 
-            total_rows = OpenpyxlTableHandler.get_sheet_range_bounds(filename, _sheet_name)
+            total_rows = self.get_sheet_range_bounds(filename, _sheet_name)
             range = sheet.range((1, 1), (total_rows, len(header)))
             rows = range.rows
             for row in rows[1:]:
