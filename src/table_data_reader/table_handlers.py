@@ -426,19 +426,7 @@ class OpenpyxlTableHandler(TableHandler):
                                  header=header, wb=wb, group_flag=cf, **kwargs)
         return definitions
 
-    def load_definitions(self, sheet_name, filename: str = None, **kwargs):
-        """
-        @todo - document that this not only loads definitions, but also writes the data file, if 'id' flag is True
-        :param sheet_name:
-        :param filename:
-        :param id_flag:
-        :return:
-        """
-        from openpyxl import load_workbook
-        wb = load_workbook(filename, data_only=True)
-
-        definitions = defaultdict(lambda: defaultdict(dict))
-        _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
+    def get_version(self, wb):
         version = 1
 
         try:
@@ -450,6 +438,28 @@ class OpenpyxlTableHandler(TableHandler):
             self.version = version
         except:
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
+
+        return version
+
+    def load_definitions(self, sheet_name, filename: str = None, **kwargs):
+        """
+        @todo - document that this not only loads definitions, but also writes the data file, if 'id' flag is True
+        :param sheet_name:
+        :param filename:
+        :param id_flag:
+        :return:
+        """
+        from openpyxl import load_workbook
+        wb = load_workbook(filename, data_only=True)
+
+        from table_data_reader import id_handler
+        id_handler.build_id_dict(filename)
+
+
+        definitions = defaultdict(lambda: defaultdict(dict))
+        _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
+        version = self.get_version(wb)
+
         inline_groupings = {}
         table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
                                         definitions=definitions, inline_groupings=inline_groupings, **kwargs)
@@ -477,12 +487,8 @@ class OpenpyxlTableHandler(TableHandler):
         res = []
         for var_set in definitions.values():
             for scenario_var in var_set.values():
-                # print(scenario_var)
                 res.append(scenario_var)
         return res
-        # return [definitions_ .values()]
-        # return definitions
-
 
 class XLWingsTableHandler(TableHandler):
     @staticmethod
