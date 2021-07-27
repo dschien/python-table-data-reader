@@ -455,7 +455,6 @@ class OpenpyxlTableHandler(TableHandler):
         from table_data_reader import id_handler
         id_handler.build_id_dict(filename)
 
-
         definitions = defaultdict(lambda: defaultdict(dict))
         _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
         version = self.get_version(wb)
@@ -468,7 +467,7 @@ class OpenpyxlTableHandler(TableHandler):
         table_visitor_partial(visitor_function=self.ref_date_handling)
         if kwargs.get('id_flag'):
             table_visitor_partial(visitor_function=self.add_ids)
-            wb.save(filename)
+            #wb.save(filename)
         # check all variables have the same set of groupings and that it is the same set as the yaml file dictates
         # todo: this might not work for countries not listed in the yaml, write a test or more experimenting?
         # weird way of doing this; there might be a better approach requiring less iteration

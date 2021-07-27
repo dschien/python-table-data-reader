@@ -1,5 +1,6 @@
 import openpyxl
 
+from datetime import date
 import logging
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ def build_id_dict(filename):
 
     wb.close()
     logger.info(f'Closed workbook {filename}')
-
+    fill_missing_ids(filename, id_map, highest_id)
     return id_map, highest_id
 
 
@@ -74,8 +75,22 @@ def check_for_duplicate_ids(id_map) -> bool:
     return False
 
 
-def add_overwrite_msg_to_workbook(workbook):
-    pass
+def add_overwrite_msg_to_workbook(workbook, changed_sheet=None, changed_cell=None):
+    changes_msg = f'Overwrote empty cell ids in sheet {changed_sheet}, cell {changed_cell}'
+    today = date.today()
+    date_msg = today.strftime("%d/%m/%Y")
+
+    if 'changes' in workbook.sheetnames:
+        sheet = workbook['changes']
+        rows = list(sheet.iter_rows())
+        new_row = rows[-1][0].row + 1
+        sheet.cell(row=new_row, column=1).value = date_msg
+        sheet.cell(row=new_row, column=2).value = changes_msg
+    else:
+        logger.info(f'Creating new sheet for changes in workbook')
+        changes = workbook.create_sheet('changes')
+        changes.cell(row=1, column=1).value = date_msg
+        changes.cell(row=1, column=2).value = changes_msg
 
 
 def fill_missing_ids(filename, id_map, highest_id):
@@ -101,7 +116,7 @@ def fill_missing_ids(filename, id_map, highest_id):
                 highest_id += 1
                 cell.value = highest_id
                 logger.debug(f'Overwriting cell id value in cell {row}, {id_column+1}')
-                add_overwrite_msg_to_workbook(wb)
+                add_overwrite_msg_to_workbook(wb, changed_sheet=sheet_name, changed_cell=cell.coordinate)
 
     wb.save(filename)
     wb.close()
