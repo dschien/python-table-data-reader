@@ -175,20 +175,7 @@ class OpenpyxlTableHandler(TableHandler):
     def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None,
                           group_flag=False, inline_groupings=None, wb=None, **kwargs):
         """
-        This function does two things:
-        1. Truncates ref dates to the beginning of the month
-        2. Assigns group-level dictionaries to parameter values in definitions with weird dictionary stuff
-
-        THIS SHOULD BE REWRITTEN/REFACTORED!
-
-        :param values:
-        :param definitions:
-        :param sheet_name:
-        :param group_flag:
-        :param inline_groupings:
-        :param wb:
-        :param kwargs:
-        :return:
+        Truncates ref dates to the beginning of the month
         """
 
         if 'ref date' in values and values['ref date']:
@@ -202,10 +189,22 @@ class OpenpyxlTableHandler(TableHandler):
                     f"{values['ref date']} for variable {values['variable']} is not a date - "
                     f"check spreadsheet value is a valid day of a month")
 
+    def build_definitions(self, values: Dict = None, definitions=None, sheet_name=None,
+                          group_flag=False, inline_groupings=None, wb=None, **kwargs):
+        """
+        Assigns group-level dictionaries to parameter values in definitions with weird dictionary stuff
+        :param values:
+        :param definitions:
+        :param sheet_name:
+        :param group_flag:
+        :param inline_groupings:
+        :param wb:
+        :param kwargs:
+        :return:
+        """
         logger.debug(f'values for {values["variable"]}: {values}')
         name = values['variable']
         scenario = values['scenario'] if values['scenario'] else "default"
-        group = values['group'] if 'group' in values.keys() else None
 
         if scenario in definitions[name].keys():
             # if this is an inline group row the error doesn't need to be raised as it's normal
@@ -255,9 +254,9 @@ class OpenpyxlTableHandler(TableHandler):
 
                 # todo: is it important that ref dates for groups must all have the same value?
                 # replace this with .all() and assignment, etc.
-                refdates = set(group_values['ref date'].values())
-                assert len(refdates) == 1
-                group_values['ref date'] = refdates.pop()
+                ref_dates = set(group_values['ref date'].values())
+                assert len(ref_dates) == 1
+                group_values['ref date'] = ref_dates.pop()
                 definitions[name][scenario] = group_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
@@ -360,11 +359,13 @@ class OpenpyxlTableHandler(TableHandler):
         table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
                                         definitions=definitions, inline_groupings=inline_groupings, **kwargs)
 
-        # the visitor first parses for groups to build the inline_groupings object,
-        # then the second visitor pass builds the definitions object.
+        # the first visitor pass is for groups, to build the inline_groupings object,
+        # the second visitor pass truncates ref dates to the beginning of each month
+        # the third visitor pass builds the definitions object.
         if kwargs.get('with_group'):
             table_visitor_partial(visitor_function=self.groupings_handler)
         table_visitor_partial(visitor_function=self.ref_date_handling)
+        table_visitor_partial(visitor_function=self.build_definitions)
 
         definitions_list = []
         for var_set in definitions.values():
