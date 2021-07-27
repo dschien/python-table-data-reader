@@ -30,7 +30,7 @@ def build_id_dict(filename):
 
         sheet = wb[_sheet_name]
         rows = list(sheet.iter_rows())
-        id_column = get_id_column_index(sheet)
+        id_column = get_id_column_index(filename, sheet)
         id_map[_sheet_name] = {}
 
         for row in rows[1:]:
@@ -47,15 +47,16 @@ def build_id_dict(filename):
     return id_map, highest_id
 
 
-def get_id_column_index(sheet):
+def get_id_column_index(filename, sheet):
     """
+    :param filename: The workbook name
     :param sheet: The specific sheet to get the id column for (ZERO INDEXED!)
     :return: The id column index
     """
     rows = list(sheet.iter_rows())
     header = [cell.value for cell in rows[0]]
     if 'id' not in header:
-        raise Exception(f"{sheet} has no id column")
+        raise Exception(f"{filename}, {sheet} has no id column")
     id_column = header.index('id')
     return id_column
 
@@ -104,7 +105,7 @@ def fill_missing_ids(filename, id_map, highest_id):
     :return:
     """
 
-    logger.info(f'Opening workbook {filename} to fill missing ids...')
+    logger.info(f'Opening workbook {filename} to fill any missing ids...')
     wb = openpyxl.load_workbook(filename, data_only=True)
 
     for sheet_name in id_map.keys():
@@ -112,11 +113,11 @@ def fill_missing_ids(filename, id_map, highest_id):
             current_id = id_map[sheet_name][row]
             if current_id is None:
                 sheet = wb[sheet_name]
-                id_column = get_id_column_index(sheet)
+                id_column = get_id_column_index(filename, sheet)
                 cell = sheet.cell(row=row, column=id_column+1)
                 highest_id += 1
                 cell.value = highest_id
-                logger.debug(f'Overwriting cell id value in cell {row}, {id_column+1}')
+                logger.info(f'Overwriting cell id value in cell {row}, {id_column+1}')
                 add_overwrite_msg_to_workbook(wb, changed_sheet=sheet_name, changed_cell=cell.coordinate)
 
     wb.save(filename)
