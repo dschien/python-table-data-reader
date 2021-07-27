@@ -172,15 +172,13 @@ class OpenpyxlTableHandler(TableHandler):
                     f"with name <{var}>,<{group}> scenario, and <{scenario}> group in sheet {sheet_name}")
             inline_groupings[var][scenario][group] = values
 
-    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None,
-                          group_flag=False, inline_groupings=None, wb=None, **kwargs):
+    def truncate_ref_date(self, values: Dict = None):
         """
         Truncates ref dates to the beginning of the month
         """
 
-        if 'ref date' in values and values['ref date']:
+        if values.get('ref date') is not None:
             if isinstance(values['ref date'], datetime.datetime):
-                # values['ref date'] = datetime.datetime(*xldate_as_tuple(values['ref date'], wb.datemode))
                 if values['ref date'].day != 1:
                     logger.warning(f'ref date truncated to first of month for variable {values["variable"]}')
                     values['ref date'] = values['ref date'].replace(day=1)
@@ -188,6 +186,7 @@ class OpenpyxlTableHandler(TableHandler):
                 raise Exception(
                     f"{values['ref date']} for variable {values['variable']} is not a date - "
                     f"check spreadsheet value is a valid day of a month")
+        return values
 
     def build_definitions(self, values: Dict = None, definitions=None, sheet_name=None,
                           group_flag=False, inline_groupings=None, wb=None, **kwargs):
@@ -202,6 +201,9 @@ class OpenpyxlTableHandler(TableHandler):
         :param kwargs:
         :return:
         """
+
+        values = self.truncate_ref_date(values)
+
         logger.debug(f'values for {values["variable"]}: {values}')
         name = values['variable']
         scenario = values['scenario'] if values['scenario'] else "default"
@@ -230,6 +232,8 @@ class OpenpyxlTableHandler(TableHandler):
                 for k in keys:
                     group_values[k] = {}
                 if name in inline_groupings.keys():
+                    # we have already parsed this group variable in inline_groupings
+                    # so just set group_values here
                     if scenario in inline_groupings[name].keys():
                         for c in inline_groupings[name][scenario].keys():
                             for k in keys:
@@ -238,6 +242,8 @@ class OpenpyxlTableHandler(TableHandler):
                                 else:
                                     group_values[k][c] = values[k]
                 else:
+                    # the variable is a group variable but has not been parsed inline as part of the main page
+                    # so, find its sheet and read from it.
                     rows = list(wb[name].iter_rows())
                     header = [cell.value for cell in rows[0]]
                     for i, row in enumerate(rows[1:]):
@@ -252,11 +258,12 @@ class OpenpyxlTableHandler(TableHandler):
                                 else:
                                     group_values[k][temp_values["group"]] = values[k]
 
-                # todo: is it important that ref dates for groups must all have the same value?
-                # replace this with .all() and assignment, etc.
-                ref_dates = set(group_values['ref date'].values())
-                assert len(ref_dates) == 1
-                group_values['ref date'] = ref_dates.pop()
+                ref_dates = list(group_values['ref date'].values())
+                # Ensures that every element in ref_dates is the same
+                assert ref_dates.count(ref_dates[0]) == len(ref_dates),\
+                    f"Different groups have different ref dates for {values['variable']}"
+                group_values['ref date'] = ref_dates[0]
+
                 definitions[name][scenario] = group_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
@@ -360,11 +367,9 @@ class OpenpyxlTableHandler(TableHandler):
                                         definitions=definitions, inline_groupings=inline_groupings, **kwargs)
 
         # the first visitor pass is for groups, to build the inline_groupings object,
-        # the second visitor pass truncates ref dates to the beginning of each month
-        # the third visitor pass builds the definitions object.
+        # the second visitor pass builds the definitions object.
         if kwargs.get('with_group'):
             table_visitor_partial(visitor_function=self.groupings_handler)
-        table_visitor_partial(visitor_function=self.ref_date_handling)
         table_visitor_partial(visitor_function=self.build_definitions)
 
         definitions_list = []
