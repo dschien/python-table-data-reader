@@ -62,6 +62,10 @@ class TestVariableIDs(unittest.TestCase):
         create_temp_copy(get_static_path('data/no_existing_ids_group.xlsx'))
         create_temp_copy(get_static_path('data/duplicate_ids.xlsx'))
         create_temp_copy(get_static_path('data/duplicate_ids_group.xlsx'))
+        create_temp_copy(get_static_path('data/no_id_column.xlsx'))
+        create_temp_copy(get_static_path('data/no_id_column_group.xlsx'))
+        create_temp_copy(get_static_path('data/multiple_id_columns.xlsx'))
+        create_temp_copy(get_static_path('data/multiple_id_columns_group.xlsx'))
 
     def tearDown(self):
         delete_temp_copy(get_static_path('data/existing_ids_copy.xlsx'))
@@ -183,3 +187,49 @@ class TestVariableIDs(unittest.TestCase):
                         get_static_path('data/no_existing_ids_copy.xlsx'))
 
         assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
+
+    def test_no_id_column(self):
+        with self.assertRaises(Exception) as context:
+            handler = OpenpyxlTableHandler()
+            handler.load_definitions("params",
+                                     filename=get_static_path('data/no_id_column_copy.xlsx'),
+                                     id_flag=True)
+
+        self.assertTrue(" has no id column" in str(context.exception),
+                        f"' has no id column' not found in {str(context.exception)}")
+
+    def test_no_id_column_group(self):
+        with self.assertRaises(Exception) as context:
+            handler = OpenpyxlTableHandler()
+            handler.load_definitions("params",
+                                     filename=get_static_path('data/no_id_column_group_copy.xlsx'),
+                                     id_flag=True,
+                                     with_group=True,
+                                     groupings=['UK', 'DE'],
+                                     group_vars=['power_laptop', 'energy_intensity_network'])
+
+        self.assertTrue(" has no id column" in str(context.exception),
+                        f"' has no id column' not found in {str(context.exception)}")
+
+    def test_multiple_id_columns(self):
+        with self.assertRaises(Exception) as context:
+            handler = OpenpyxlTableHandler()
+            handler.load_definitions("params",
+                                     filename=get_static_path('data/multiple_id_columns_copy.xlsx'),
+                                     id_flag=True)
+
+        self.assertTrue(" has multiple id columns" in str(context.exception),
+                        f"' has multiple id columns' not found in {str(context.exception)}")
+
+    def test_multiple_id_columns_group(self):
+        with self.assertRaises(Exception) as context:
+            handler = OpenpyxlTableHandler()
+            handler.load_definitions("params",
+                                     filename=get_static_path('data/multiple_id_columns_group_copy.xlsx'),
+                                     id_flag=True,
+                                     with_group=True,
+                                     groupings=['UK', 'DE'],
+                                     group_vars=['power_laptop', 'energy_intensity_network'])
+
+        self.assertTrue(" has multiple id columns" in str(context.exception),
+                        f"' has multiple id columns' not found in {str(context.exception)}")
