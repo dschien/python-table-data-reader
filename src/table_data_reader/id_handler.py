@@ -44,7 +44,6 @@ def build_id_dict(filename):
 
     wb.close()
     logger.info(f'Closed workbook {filename}')
-    fill_missing_ids(filename, id_map, highest_id)
     return id_map, highest_id
 
 
@@ -55,6 +54,8 @@ def get_id_column_index(sheet):
     """
     rows = list(sheet.iter_rows())
     header = [cell.value for cell in rows[0]]
+    if 'id' not in header:
+        raise Exception(f"{sheet} has no id column")
     id_column = header.index('id')
     return id_column
 

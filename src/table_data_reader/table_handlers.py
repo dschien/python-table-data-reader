@@ -147,7 +147,7 @@ class OpenpyxlTableHandler(TableHandler):
         self.id_map = defaultdict(lambda: defaultdict(dict))
         self.id_column = None
 
-    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, inline_groupings=None, id_flag=False,
+    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, inline_groupings=None,
                 wb=None,
                 sheet_name=None, groupings=[], **kwargs):
         """
@@ -264,20 +264,18 @@ class OpenpyxlTableHandler(TableHandler):
                     f"with name <{var}>,<{group}> scenario, and <{scenario}> group in sheet {sheet_name}")
             inline_groupings[var][scenario][group] = values
 
-    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
+    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None,
                           group_flag=False, inline_groupings=None, wb=None, **kwargs):
         """
-        This function does three distinct things:
+        This function does two things:
         1. Truncates ref dates to the beginning of the month
-        2. Builds an id map and finds the largest id (if id_flag is on)
-        3. Assigns group-level dictionaries to parameter values in definitions with weird dictionary stuff
+        2. Assigns group-level dictionaries to parameter values in definitions with weird dictionary stuff
 
         THIS SHOULD BE REWRITTEN/REFACTORED!
 
         :param values:
         :param definitions:
         :param sheet_name:
-        :param id_flag:
         :param group_flag:
         :param inline_groupings:
         :param wb:
@@ -300,28 +298,6 @@ class OpenpyxlTableHandler(TableHandler):
         name = values['variable']
         scenario = values['scenario'] if values['scenario'] else "default"
         group = values['group'] if 'group' in values.keys() else None
-        # store ids in a map to identify largest existing id
-        if id_flag:
-            if 'id' in values.keys() and (values["id"] is not None):
-                pid = values['id']
-                if (name not in self.id_map.keys() or scenario not in self.id_map[
-                    name].keys()) or (name in kwargs['group_vars'] and group not in self.id_map[
-                    name][scenario].keys()):
-                    # raises exception if the ID already exists
-                    # TODO: doesn't detect duplicates in groups
-                    # ends up comparing the id against a dictionary, which is always false
-                    if (any(pid in d.values() for d in self.id_map.values())):
-                        raise Exception("Duplicate ID variable " + name)
-                    else:
-                        if pid > self.highest_id:
-                            self.highest_id = pid
-                        if group_flag and name in kwargs['group_vars']:
-                            if group is None:
-                                self.id_map[name][scenario]["overall"] = pid
-                            else:
-                                self.id_map[name][scenario][group] = pid
-                        else:
-                            self.id_map[name][scenario] = pid
 
         if scenario in definitions[name].keys():
             # if this is an inline group row the error doesn't need to be raised as it's normal
@@ -368,10 +344,6 @@ class OpenpyxlTableHandler(TableHandler):
                                     group_values[k][temp_values["group"]] = temp_values[k]
                                 else:
                                     group_values[k][temp_values["group"]] = values[k]
-                                if k == 'id' and id_flag:
-                                    self.id_map[name][scenario][temp_values['group']] = temp_values['id']
-                                    if temp_values['id'] > self.highest_id:
-                                        self.highest_id = temp_values['id']
 
                 # todo: is it important that ref dates for groups must all have the same value?
                 # replace this with .all() and assignment, etc.
@@ -453,7 +425,11 @@ class OpenpyxlTableHandler(TableHandler):
         wb = load_workbook(filename, data_only=True)
 
         from table_data_reader import id_handler
-        id_handler.build_id_dict(filename)
+        id_map, highest_id = id_handler.build_id_dict(filename)
+        if id_handler.check_for_duplicate_ids(id_map):
+            raise Exception("Duplicate ID variable found")
+        if kwargs.get('id_flag'):
+            id_handler.fill_missing_ids(filename, id_map, highest_id)
 
         definitions = defaultdict(lambda: defaultdict(dict))
         _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
@@ -465,9 +441,7 @@ class OpenpyxlTableHandler(TableHandler):
         if kwargs.get('with_group'):
             table_visitor_partial(visitor_function=self.groupings_handler)
         table_visitor_partial(visitor_function=self.ref_date_handling)
-        if kwargs.get('id_flag'):
-            table_visitor_partial(visitor_function=self.add_ids)
-            #wb.save(filename)
+
         # check all variables have the same set of groupings and that it is the same set as the yaml file dictates
         # todo: this might not work for countries not listed in the yaml, write a test or more experimenting?
         # weird way of doing this; there might be a better approach requiring less iteration
