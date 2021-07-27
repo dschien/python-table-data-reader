@@ -55,8 +55,13 @@ def get_id_column_index(filename, sheet):
     """
     rows = list(sheet.iter_rows())
     header = [cell.value for cell in rows[0]]
+    
     if 'id' not in header:
         raise Exception(f"{filename}, {sheet} has no id column")
+
+    if header.count('id') > 1:
+        raise Exception(f"{filename}, {sheet} has multiple id columns")
+
     id_column = header.index('id')
     return id_column
 
