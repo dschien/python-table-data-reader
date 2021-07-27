@@ -67,16 +67,6 @@ class TestVariableIDs(unittest.TestCase):
 
             delete_temp_copy(get_static_path('data/existing_ids_copy.xlsx'))
 
-            assert handler.id_map == {
-                'power_laptop': {
-                    'default': 0,
-                    'S1': 1
-                },
-                'energy_intensity_network': {
-                    'default': 2
-                }
-            }
-
             assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
 
     def test_existing_ids_group(self):
@@ -99,23 +89,6 @@ class TestVariableIDs(unittest.TestCase):
 
             delete_temp_copy(get_static_path('data/existing_ids_group_copy.xlsx'))
 
-            assert handler.id_map == {
-                'power_laptop': {
-                    'default': {
-                        'overall': 0,
-                        'UK': 1,
-                        'DE': 2
-                    }
-                },
-                'energy_intensity_network': {
-                    'default': {
-                        'overall': 3,
-                        'UK': 4,
-                        'DE': 5
-                    }
-                }
-            }
-
             assert 'values_changed' not in diff.keys() and 'type_changes' not in diff.keys()
 
     def test_some_existing_ids(self):
@@ -134,18 +107,6 @@ class TestVariableIDs(unittest.TestCase):
                             get_static_path('data/some_existing_ids_copy.xlsx'))
 
             delete_temp_copy(get_static_path('data/some_existing_ids_copy.xlsx'))
-
-            assert handler.id_map == {
-                'power_laptop': {
-                    'default': 0
-                },
-                'time_laptop': {
-                    'default': 3
-                },
-                'energy_intensity_network': {
-                    'default': 2
-                }
-            }
 
             assert diff['type_changes']['root[0][2][18]._value']['new_value'] == 3
 
@@ -169,23 +130,6 @@ class TestVariableIDs(unittest.TestCase):
 
             delete_temp_copy(get_static_path('data/some_existing_ids_group_copy.xlsx'))
 
-            assert handler.id_map == {
-                'power_laptop': {
-                    'default': {
-                        'overall': 0,
-                        'UK': 5,
-                        'DE': 2
-                    }
-                },
-                'energy_intensity_network': {
-                    'default': {
-                        'overall': 6,
-                        'UK': 4,
-                        'DE': 7
-                    }
-                }
-            }
-
             assert diff['type_changes']['root[0][2][19]._value']['new_value'] == 5
             assert diff['type_changes']['root[0][4][19]._value']['new_value'] == 6
             assert diff['type_changes']['root[1][2][6]._value']['new_value'] == 7
@@ -206,13 +150,6 @@ class TestVariableIDs(unittest.TestCase):
                             get_static_path('data/no_existing_ids_copy.xlsx'))
 
             delete_temp_copy(get_static_path('data/no_existing_ids_copy.xlsx'))
-
-            assert handler.id_map == {
-                'power_laptop': {
-                    'default': 0,
-                    'S1': 1
-                }
-            }
 
             assert diff['type_changes']['root[0][1][18]._value']['new_value'] == 0
             assert diff['type_changes']['root[0][2][18]._value']['new_value'] == 1
@@ -237,23 +174,6 @@ class TestVariableIDs(unittest.TestCase):
 
             delete_temp_copy(get_static_path('data/no_existing_ids_group_copy.xlsx'))
 
-            assert handler.id_map == {
-                'power_laptop': {
-                    'default': {
-                        'overall': 0,
-                        'UK': 1,
-                        'DE': 2
-                    }
-                },
-                'energy_intensity_network': {
-                    'default': {
-                        'overall': 3,
-                        'UK': 4,
-                        'DE': 5
-                    }
-                }
-            }
-
             assert diff['type_changes']['root[0][1][19]._value']['new_value'] == 0
             assert diff['type_changes']['root[0][2][19]._value']['new_value'] == 1
             assert diff['type_changes']['root[0][3][19]._value']['new_value'] == 2
@@ -262,20 +182,29 @@ class TestVariableIDs(unittest.TestCase):
             assert diff['type_changes']['root[1][2][6]._value']['new_value'] == 5
 
     def test_duplicate_ids(self):
+        create_temp_copy(get_static_path('data/duplicate_ids_group.xlsx'))
+
         with self.assertRaises(Exception) as context:
             handler = OpenpyxlTableHandler()
             handler.load_definitions("params", filename=get_static_path('data/duplicate_ids.xlsx'), id_flag=True)
+
+        delete_temp_copy(get_static_path('data/duplicate_ids_group_copy.xlsx'))
+
         self.assertTrue("Duplicate ID variable " in str(context.exception))
 
     def test_duplicate_ids_group(self):
+        create_temp_copy(get_static_path('data/duplicate_ids_group.xlsx'))
+
         with self.assertRaises(Exception) as context:
             handler = OpenpyxlTableHandler()
             handler.load_definitions("params",
-                                     filename=get_static_path('data/duplicate_ids_group.xlsx'),
+                                     filename=get_static_path('data/duplicate_ids_group_copy.xlsx'),
                                      id_flag=True,
                                      with_group=True,
                                      groupings=['UK', 'DE'],
                                      group_vars=['power_laptop', 'energy_intensity_network'])
+
+        delete_temp_copy(get_static_path('data/duplicate_ids_group_copy.xlsx'))
 
         self.assertTrue("Duplicate ID variable " in str(context.exception))
 
