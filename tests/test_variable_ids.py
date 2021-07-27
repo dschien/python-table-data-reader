@@ -76,6 +76,10 @@ class TestVariableIDs(unittest.TestCase):
         delete_temp_copy(get_static_path('data/no_existing_ids_group_copy.xlsx'))
         delete_temp_copy(get_static_path('data/duplicate_ids_copy.xlsx'))
         delete_temp_copy(get_static_path('data/duplicate_ids_group_copy.xlsx'))
+        delete_temp_copy(get_static_path('data/no_id_column_copy.xlsx'))
+        delete_temp_copy(get_static_path('data/no_id_column_group_copy.xlsx'))
+        delete_temp_copy(get_static_path('data/multiple_id_columns_copy.xlsx'))
+        delete_temp_copy(get_static_path('data/multiple_id_columns_group_copy.xlsx'))
 
     def test_existing_ids(self):
         handler = OpenpyxlTableHandler()
