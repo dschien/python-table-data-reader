@@ -355,6 +355,7 @@ class OpenpyxlTableHandler(TableHandler):
         wb = load_workbook(filename, data_only=True)
 
         # Handles id logic and generates an id_map dictionary
+        # todo: move invocation to separate program
         from table_data_reader import id_handler
         id_map, highest_id = id_handler.build_id_dict(filename)
         if id_handler.check_for_duplicate_ids(id_map):
