@@ -234,6 +234,7 @@ class OpenpyxlTableHandler(TableHandler):
                 if name in inline_groupings.keys():
                     # we have already parsed this group variable in inline_groupings
                     # so just set group_values here
+                    # todo: give variables more descriptive names
                     if scenario in inline_groupings[name].keys():
                         for c in inline_groupings[name][scenario].keys():
                             for k in keys:
@@ -244,6 +245,7 @@ class OpenpyxlTableHandler(TableHandler):
                 else:
                     # the variable is a group variable but has not been parsed inline as part of the main page
                     # so, find its sheet and read from it.
+                    # todo: move this into groupings_handler?
                     rows = list(wb[name].iter_rows())
                     header = [cell.value for cell in rows[0]]
                     for i, row in enumerate(rows[1:]):
@@ -260,6 +262,7 @@ class OpenpyxlTableHandler(TableHandler):
 
                 ref_dates = list(group_values['ref date'].values())
                 # Ensures that every element in ref_dates is the same
+                # todo: see if we can remove this restriction
                 assert ref_dates.count(ref_dates[0]) == len(ref_dates),\
                     f"Different groups have different ref dates for {values['variable']}"
                 group_values['ref date'] = ref_dates[0]
@@ -270,7 +273,10 @@ class OpenpyxlTableHandler(TableHandler):
                       definitions=None, **kwargs):
         """
         stub for id management
-        # todo: try and remove checks for specific kwargs to allow for more generic visitor functionality
+
+        todo: try and remove checks for specific kwargs to allow for more generic visitor functionality
+
+        todo: make this work for other tables? might not be worth the effort
 
         :param definitions:
         :param wb:
@@ -308,6 +314,7 @@ class OpenpyxlTableHandler(TableHandler):
         return definitions
 
     def get_version(self, wb):
+        # todo: test versioning?
         version = 1
         try:
             sheet = wb['metadata']
@@ -455,7 +462,7 @@ class TableParameterLoader(object):
         The first cell in the first row in a spreadsheet must contain the keyword 'variable' or the sheet is ignored.
 
         Any cells used as titles (with no associated value) are also added to the returned dictionary. However, the
-        values associated with each header will be None. For example, given the speadsheet:
+        values associated with each header will be None. For example, given the spreadsheet:
 
         | variable | A | B |
         |----------|---|---|
@@ -485,6 +492,7 @@ class TableParameterLoader(object):
         repository.add_all(self.load_parameters(sheet_name, **kwargs))
 
     def load_parameters(self, sheet_name, **kwargs):
+        # todo: work out what is going on here and comment it
 
         parameter_definitions = self.load_parameter_definitions(sheet_name=sheet_name, **kwargs)
         params = []
