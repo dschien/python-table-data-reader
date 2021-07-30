@@ -104,12 +104,49 @@ class TestGroupVariables(unittest.TestCase):
             'DE': 0.07
         }
 
-
     def test_multiple_groups_multiple_sheets(self):
         handler = OpenpyxlTableHandler()
 
         definitions = handler.load_definitions(None,
                                                filename=get_static_path('multiple_groups_multiple_sheets.xlsx'),
+                                               with_group=True,
+                                               group_vars=['power_laptop', 'energy_intensity_network'])
+
+        assert len(definitions) == 2
+
+        assert definitions[0]['variable'] == 'power_laptop'
+        assert definitions[0]['mean growth'] == {
+            'UK': 0.01,
+            'DE': 0.02
+        }
+        assert definitions[0]['initial_value_proportional_variation'] == {
+            'UK': 0.2,
+            'DE': 0.3
+        }
+        assert definitions[0]['variability growth'] == {
+            'UK': 0.06,
+            'DE': 0.07
+        }
+
+        assert definitions[1]['variable'] == 'energy_intensity_network'
+        assert definitions[1]['mean growth'] == {
+            'UK': 0.35,
+            'DE': 0.45
+        }
+        assert definitions[1]['initial_value_proportional_variation'] == {
+            'UK': 0.15,
+            'DE': 0.2
+        }
+        assert definitions[1]['variability growth'] == {
+            'UK': 0.05,
+            'DE': 0
+        }
+
+    def test_multiple_groups_some_sheets(self):
+        handler = OpenpyxlTableHandler()
+
+        definitions = handler.load_definitions(None,
+                                               filename=get_static_path('multiple_groups_some_sheets.xlsx'),
                                                with_group=True,
                                                group_vars=['power_laptop', 'energy_intensity_network'])
 
