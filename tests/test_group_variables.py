@@ -179,3 +179,40 @@ class TestGroupVariables(unittest.TestCase):
             'UK': 0.05,
             'DE': 0
         }
+
+    def test_inconsistent_groups_multiple_sheets(self):
+        handler = OpenpyxlTableHandler()
+
+        with self.assertRaises(Exception) as context:
+            handler.load_definitions(None,
+                                     filename=get_static_path('inconsistent_groups_multiple_sheets.xlsx'),
+                                     with_group=True,
+                                     group_vars=['power_laptop', 'energy_intensity_network'])
+
+        self.assertTrue("Expected values for groups: " in str(context.exception),
+                        f"'Expected values for groups: ' not found in {str(context.exception)}")
+
+
+    def test_inconsistent_groups_single_sheet(self):
+        handler = OpenpyxlTableHandler()
+
+        with self.assertRaises(Exception) as context:
+            handler.load_definitions(None,
+                                     filename=get_static_path('inconsistent_groups_single_sheet.xlsx'),
+                                     with_group=True,
+                                     group_vars=['power_laptop', 'energy_intensity_network'])
+
+        self.assertTrue("Expected values for groups: " in str(context.exception),
+                        f"'Expected values for groups: ' not found in {str(context.exception)}")
+
+    def test_inconsistent_groups_some_sheets(self):
+        handler = OpenpyxlTableHandler()
+
+        with self.assertRaises(Exception) as context:
+            handler.load_definitions(None,
+                                     filename=get_static_path('inconsistent_groups_some_sheets.xlsx'),
+                                     with_group=True,
+                                     group_vars=['power_laptop', 'energy_intensity_network'])
+
+        self.assertTrue("Expected values for groups: " in str(context.exception),
+                        f"'Expected values for groups: ' not found in {str(context.exception)}")
