@@ -144,20 +144,20 @@ class OpenpyxlTableHandler(TableHandler):
     def __init__(self, version=2):
         super().__init__(version=version)
 
-    def group_builder(self, values: Dict = None, group_variables=None, sheet_name=None, **kwargs):
+    def group_builder(self, entry: Dict = None, group_variables=None, sheet_name=None, **kwargs):
         """
         Mutates the group_variables dictionary to store group-level variable values
         Dictionary is organised as dict[variable][scenario][group]
-        :param values:
+        :param entry:
         :param group_variables:
         :param sheet_name:
         :param kwargs:
         :return:
         """
 
-        var = values["variable"]
-        group = values["group"]
-        scenario = values["scenario"] if values["scenario"] else "default"
+        var = entry["variable"]
+        group = entry["group"]
+        scenario = entry["scenario"] if entry["scenario"] else "default"
         if group is not None:
             if var not in group_variables.keys():
                 group_variables[var] = {}
@@ -170,7 +170,7 @@ class OpenpyxlTableHandler(TableHandler):
                 raise ValueError(
                     f"Duplicate entry for parameter "
                     f"with name <{var}>,<{group}> scenario, and <{scenario}> group in sheet {sheet_name}")
-            group_variables[var][scenario][group] = values
+            group_variables[var][scenario][group] = entry
 
     def truncate_ref_date(self, values: Dict = None):
         """
@@ -188,11 +188,11 @@ class OpenpyxlTableHandler(TableHandler):
                     f"check spreadsheet value is a valid day of a month")
         return values
 
-    def build_definitions(self, values: Dict = None, definitions=None, sheet_name=None,
+    def build_definitions(self, entry: Dict = None, definitions=None, sheet_name=None,
                           group_flag=False, group_variables=None, wb=None, **kwargs):
         """
         Assigns group-level dictionaries to parameter values in definitions with weird dictionary stuff
-        :param values:
+        :param entry:
         :param definitions:
         :param sheet_name:
         :param group_flag:
@@ -202,51 +202,57 @@ class OpenpyxlTableHandler(TableHandler):
         :return:
         """
 
-        values = self.truncate_ref_date(values)
+        entry = self.truncate_ref_date(entry)
 
-        logger.debug(f'values for {values["variable"]}: {values}')
-        name = values['variable']
-        scenario = values['scenario'] if values['scenario'] else "default"
+        logger.debug(f'values for {entry["variable"]}: {entry}')
+        variable_name = entry['variable']
+        scenario = entry['scenario'] if entry['scenario'] else "default"
 
-        if scenario in definitions[name].keys():
+        if scenario in definitions[variable_name].keys():
             # if this is an inline group row the error doesn't need to be raised as it's normal
-            if values['group'] is not None:
+            if entry['group'] is not None:
                 return None
             logger.error(
                 f"Duplicate entry for parameter "
-                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
+                f"with name <{entry['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
             raise ValueError(
                 f"Duplicate entry for parameter "
-                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
+                f"with name <{entry['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
         else:
             # if the group flag is not on or there is no sheet by this parameter name just read from params
-            if not group_flag or (name not in wb.sheetnames and name not in group_variables.keys()):
-                definitions[name][scenario] = values
+            if not group_flag or (variable_name not in wb.sheetnames and variable_name not in group_variables.keys()):
+                definitions[variable_name][scenario] = entry
             else:
-                keys = list(values.keys())
+                keys = list(entry.keys())
                 group_values = {}
+
+                # set parameters that should be constant across each subvariable in the group to the same value
                 group_constants = ["variable", "scenario", "type", "param", "unit", "group"]
                 for group_constant in group_constants:
                     keys.remove(group_constant)
-                    group_values[group_constant] = values[group_constant]
+                    group_values[group_constant] = entry[group_constant]
+
                 for key in keys:
                     group_values[key] = {}
-                if name in group_variables.keys():
+                if variable_name in group_variables.keys():
                     # we have already parsed this group variable in inline_groupings
                     # so just set group_values here
-                    # todo: give variables more descriptive names
-                    if scenario in group_variables[name].keys():
-                        for group in group_variables[name][scenario].keys():
+                    scenarios = group_variables[variable_name].keys()
+                    if scenario in scenarios:
+                        groups = group_variables[variable_name][scenario].keys()
+                        for group in groups:
                             for key in keys:
-                                if group_variables[name][scenario][group][key] is not None:
-                                    group_values[key][group] = group_variables[name][scenario][group][key]
+                                value = group_variables[variable_name][scenario][group][key]
+
+                                if value is not None:
+                                    group_values[key][group] = value
                                 else:
-                                    group_values[key][group] = values[key]
+                                    group_values[key][group] = entry[key]
                 else:
                     # the variable is a group variable but has not been parsed inline as part of the main page
                     # so, find its sheet and read from it.
                     # todo: move this into groupings_handler?
-                    rows = list(wb[name].iter_rows())
+                    rows = list(wb[variable_name].iter_rows())
                     header = [cell.value for cell in rows[0]]
                     for i, row in enumerate(rows[1:]):
                         temp_values = {}
@@ -258,16 +264,16 @@ class OpenpyxlTableHandler(TableHandler):
                                 if key in header and temp_values[key] is not None:
                                     group_values[key][temp_values["group"]] = temp_values[key]
                                 else:
-                                    group_values[key][temp_values["group"]] = values[key]
+                                    group_values[key][temp_values["group"]] = entry[key]
 
                 ref_dates = list(group_values['ref date'].values())
                 # Ensures that every element in ref_dates is the same
                 # todo: see if we can remove this restriction
                 assert ref_dates.count(ref_dates[0]) == len(ref_dates),\
-                    f"Different groups have different ref dates for {values['variable']}"
+                    f"Different groups have different ref dates for {entry['variable']}"
                 group_values['ref date'] = ref_dates[0]
 
-                definitions[name][scenario] = group_values
+                definitions[variable_name][scenario] = group_values
 
     def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
                       definitions=None, **kwargs):
@@ -308,7 +314,7 @@ class OpenpyxlTableHandler(TableHandler):
 
                 group_flag = kwargs.get('with_group') and (values['variable'] in kwargs['group_vars'])
 
-                visitor_function(ws=sheet, values=values, definitions=definitions,
+                visitor_function(ws=sheet, entry=values, definitions=definitions,
                                  row_idx=i, sheet_name=_sheet_name, row=row,
                                  header=header, wb=wb, group_flag=group_flag, **kwargs)
         return definitions
