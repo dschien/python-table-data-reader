@@ -144,12 +144,12 @@ class OpenpyxlTableHandler(TableHandler):
     def __init__(self, version=2):
         super().__init__(version=version)
 
-    def groupings_handler(self, values: Dict = None, inline_groupings=None, sheet_name=None, **kwargs):
+    def group_builder(self, values: Dict = None, group_variables=None, sheet_name=None, **kwargs):
         """
-        Mutates the inline_groupings dictionary to store group-level variable values
+        Mutates the group_variables dictionary to store group-level variable values
         Dictionary is organised as dict[variable][scenario][group]
         :param values:
-        :param inline_groupings:
+        :param group_variables:
         :param sheet_name:
         :param kwargs:
         :return:
@@ -159,18 +159,18 @@ class OpenpyxlTableHandler(TableHandler):
         group = values["group"]
         scenario = values["scenario"] if values["scenario"] else "default"
         if group is not None:
-            if var not in inline_groupings.keys():
-                inline_groupings[var] = {}
-            if scenario not in inline_groupings[var].keys():
-                inline_groupings[var][scenario] = {}
-            if group in inline_groupings[var][scenario].keys():
+            if var not in group_variables.keys():
+                group_variables[var] = {}
+            if scenario not in group_variables[var].keys():
+                group_variables[var][scenario] = {}
+            if group in group_variables[var][scenario].keys():
                 logger.error(
                     f"Duplicate entry for parameter "
                     f"with name <{var}>,<{group}> scenario, and <{scenario}> group in sheet {sheet_name}")
                 raise ValueError(
                     f"Duplicate entry for parameter "
                     f"with name <{var}>,<{group}> scenario, and <{scenario}> group in sheet {sheet_name}")
-            inline_groupings[var][scenario][group] = values
+            group_variables[var][scenario][group] = values
 
     def truncate_ref_date(self, values: Dict = None):
         """
@@ -189,14 +189,14 @@ class OpenpyxlTableHandler(TableHandler):
         return values
 
     def build_definitions(self, values: Dict = None, definitions=None, sheet_name=None,
-                          group_flag=False, inline_groupings=None, wb=None, **kwargs):
+                          group_flag=False, group_variables=None, wb=None, **kwargs):
         """
         Assigns group-level dictionaries to parameter values in definitions with weird dictionary stuff
         :param values:
         :param definitions:
         :param sheet_name:
         :param group_flag:
-        :param inline_groupings:
+        :param group_variables:
         :param wb:
         :param kwargs:
         :return:
@@ -220,28 +220,28 @@ class OpenpyxlTableHandler(TableHandler):
                 f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
         else:
             # if the group flag is not on or there is no sheet by this parameter name just read from params
-            if not group_flag or (name not in wb.sheetnames and name not in inline_groupings.keys()):
+            if not group_flag or (name not in wb.sheetnames and name not in group_variables.keys()):
                 definitions[name][scenario] = values
             else:
                 keys = list(values.keys())
                 group_values = {}
-                set_values = ["variable", "scenario", "type", "param", "unit", "group"]
-                for s in set_values:
-                    keys.remove(s)
-                    group_values[s] = values[s]
-                for k in keys:
-                    group_values[k] = {}
-                if name in inline_groupings.keys():
+                group_constants = ["variable", "scenario", "type", "param", "unit", "group"]
+                for group_constant in group_constants:
+                    keys.remove(group_constant)
+                    group_values[group_constant] = values[group_constant]
+                for key in keys:
+                    group_values[key] = {}
+                if name in group_variables.keys():
                     # we have already parsed this group variable in inline_groupings
                     # so just set group_values here
                     # todo: give variables more descriptive names
-                    if scenario in inline_groupings[name].keys():
-                        for c in inline_groupings[name][scenario].keys():
-                            for k in keys:
-                                if inline_groupings[name][scenario][c][k] is not None:
-                                    group_values[k][c] = inline_groupings[name][scenario][c][k]  # do 10005 here
+                    if scenario in group_variables[name].keys():
+                        for group in group_variables[name][scenario].keys():
+                            for key in keys:
+                                if group_variables[name][scenario][group][key] is not None:
+                                    group_values[key][group] = group_variables[name][scenario][group][key]
                                 else:
-                                    group_values[k][c] = values[k]
+                                    group_values[key][group] = values[key]
                 else:
                     # the variable is a group variable but has not been parsed inline as part of the main page
                     # so, find its sheet and read from it.
@@ -254,11 +254,11 @@ class OpenpyxlTableHandler(TableHandler):
                             temp_values[key] = cell.value  # reads values from the variable's sheet
                         temp_scenario = temp_values['scenario'] if temp_values['scenario'] else "default"
                         if temp_scenario == scenario:
-                            for k in keys:
-                                if k in header and temp_values[k] is not None:
-                                    group_values[k][temp_values["group"]] = temp_values[k]
+                            for key in keys:
+                                if key in header and temp_values[key] is not None:
+                                    group_values[key][temp_values["group"]] = temp_values[key]
                                 else:
-                                    group_values[k][temp_values["group"]] = values[k]
+                                    group_values[key][temp_values["group"]] = values[key]
 
                 ref_dates = list(group_values['ref date'].values())
                 # Ensures that every element in ref_dates is the same
@@ -372,12 +372,12 @@ class OpenpyxlTableHandler(TableHandler):
         version = self.get_version(wb)
 
         table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
-                                        definitions=definitions, inline_groupings=inline_groupings, **kwargs)
+                                        definitions=definitions, group_variables=inline_groupings, **kwargs)
 
         # the first visitor pass is for groups, to build the inline_groupings object,
         # the second visitor pass builds the definitions object.
         if kwargs.get('with_group'):
-            table_visitor_partial(visitor_function=self.groupings_handler)
+            table_visitor_partial(visitor_function=self.group_builder)
         table_visitor_partial(visitor_function=self.build_definitions)
 
         definitions_list = []
