@@ -327,7 +327,7 @@ class OpenpyxlTableHandler(TableHandler):
             logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
         return version
 
-    def check_all_groups_always_present(self, definitions_list, groups):
+    def check_all_groups_always_present(self, definitions_list):
         """
         check all variables have the same set of groupings and that it is the same set as the yaml file dictates
         todo: this might not work for countries not listed in the yaml, write a test or more experimenting?
@@ -336,10 +336,15 @@ class OpenpyxlTableHandler(TableHandler):
         :return:
         """
 
+        groups = None
+
         for variable in definitions_list:
             for value in variable.values():
                 if isinstance(value, dict):
-                    assert list(value.keys()) == groups
+                    if groups is not None:
+                        assert list(value.keys()) == groups
+                    else:
+                        groups = list(value.keys())
 
     def load_definitions(self, sheet_name=None, filename: str = None, **kwargs):
         """
@@ -376,7 +381,7 @@ class OpenpyxlTableHandler(TableHandler):
             for scenario_var in var_set.values():
                 definitions_list.append(scenario_var)
 
-        self.check_all_groups_always_present(definitions_list, kwargs.get('groupings'))
+        self.check_all_groups_always_present(definitions_list)
         return definitions_list
 
     def correct_ids(self, filename):
