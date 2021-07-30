@@ -354,15 +354,6 @@ class OpenpyxlTableHandler(TableHandler):
         from openpyxl import load_workbook
         wb = load_workbook(filename, data_only=True)
 
-        # Handles id logic and generates an id_map dictionary
-        # todo: move invocation to separate program
-        from table_data_reader import id_handler
-        id_map, highest_id = id_handler.build_id_dict(filename)
-        if id_handler.check_for_duplicate_ids(id_map):
-            raise Exception("Duplicate ID variable found")
-        if kwargs.get('id_flag'):
-            id_handler.fill_missing_ids(filename, id_map, highest_id)
-
         # maps variables to their scenario and group-specific values.
         inline_groupings = {}
         # maps variables to their values, but has dictionaries for each value with different group values
@@ -387,6 +378,14 @@ class OpenpyxlTableHandler(TableHandler):
 
         self.check_all_groups_always_present(definitions_list, kwargs.get('groupings'))
         return definitions_list
+
+    def correct_ids(self, filename):
+        # Handles id logic and generates an id_map dictionary
+        from table_data_reader import id_handler
+        id_map, highest_id = id_handler.build_id_dict(filename)
+        if id_handler.check_for_duplicate_ids(id_map):
+            raise Exception("Duplicate ID variable found")
+        id_handler.fill_missing_ids(filename, id_map, highest_id)
 
 
 class XLWingsTableHandler(TableHandler):

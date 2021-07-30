@@ -69,9 +69,7 @@ class TestVariableIDs(unittest.TestCase):
     def test_existing_ids(self):
         with use_copy_of(get_static_path('data/existing_ids.xlsx')):
             handler = OpenpyxlTableHandler()
-            handler.load_definitions("params",
-                                     filename=get_static_path('data/existing_ids_copy.xlsx'),
-                                     id_flag=True)
+            handler.correct_ids(filename=get_static_path('data/existing_ids_copy.xlsx'))
 
             diff = get_diff(get_static_path('data/existing_ids.xlsx'),
                             get_static_path('data/existing_ids_copy.xlsx'))
@@ -81,12 +79,7 @@ class TestVariableIDs(unittest.TestCase):
     def test_existing_ids_group(self):
         with use_copy_of(get_static_path('data/existing_ids_group.xlsx')):
             handler = OpenpyxlTableHandler()
-            handler.load_definitions("params",
-                                     filename=get_static_path('data/existing_ids_group_copy.xlsx'),
-                                     id_flag=True,
-                                     with_group=True,
-                                     groupings=['UK', 'DE'],
-                                     group_vars=['power_laptop', 'energy_intensity_network'])
+            handler.correct_ids(filename=get_static_path('data/existing_ids_group_copy.xlsx'))
 
             diff = get_diff(get_static_path('data/existing_ids_group.xlsx'),
                             get_static_path('data/existing_ids_group_copy.xlsx'))
@@ -96,9 +89,7 @@ class TestVariableIDs(unittest.TestCase):
     def test_some_existing_ids(self):
         with use_copy_of(get_static_path('data/some_existing_ids.xlsx')):
             handler = OpenpyxlTableHandler()
-            handler.load_definitions("params",
-                                     filename=get_static_path('data/some_existing_ids_copy.xlsx'),
-                                     id_flag=True)
+            handler.correct_ids(filename=get_static_path('data/some_existing_ids_copy.xlsx'))
 
             diff = get_diff(get_static_path('data/some_existing_ids.xlsx'),
                             get_static_path('data/some_existing_ids_copy.xlsx'))
@@ -108,12 +99,7 @@ class TestVariableIDs(unittest.TestCase):
     def test_some_existing_ids_group(self):
         with use_copy_of(get_static_path('data/some_existing_ids_group.xlsx')):
             handler = OpenpyxlTableHandler()
-            handler.load_definitions("params",
-                                     filename=get_static_path('data/some_existing_ids_group_copy.xlsx'),
-                                     id_flag=True,
-                                     with_group=True,
-                                     groupings=['UK', 'DE'],
-                                     group_vars=['power_laptop', 'energy_intensity_network'])
+            handler.correct_ids(filename=get_static_path('data/some_existing_ids_group_copy.xlsx'))
 
             diff = get_diff(get_static_path('data/some_existing_ids_group.xlsx'),
                             get_static_path('data/some_existing_ids_group_copy.xlsx'))
@@ -125,9 +111,7 @@ class TestVariableIDs(unittest.TestCase):
     def test_no_existing_ids(self):
         with use_copy_of(get_static_path('data/no_existing_ids.xlsx')):
             handler = OpenpyxlTableHandler()
-            handler.load_definitions("params",
-                                     filename=get_static_path('data/no_existing_ids_copy.xlsx'),
-                                     id_flag=True)
+            handler.correct_ids(filename=get_static_path('data/no_existing_ids_copy.xlsx'))
 
             diff = get_diff(get_static_path('data/no_existing_ids.xlsx'),
                             get_static_path('data/no_existing_ids_copy.xlsx'))
@@ -138,12 +122,7 @@ class TestVariableIDs(unittest.TestCase):
     def test_no_existing_ids_group(self):
         with use_copy_of(get_static_path('data/no_existing_ids_group.xlsx')):
             handler = OpenpyxlTableHandler()
-            handler.load_definitions("params",
-                                     filename=get_static_path('data/no_existing_ids_group_copy.xlsx'),
-                                     id_flag=True,
-                                     with_group=True,
-                                     groupings=['UK', 'DE'],
-                                     group_vars=['power_laptop', 'energy_intensity_network'])
+            handler.correct_ids(filename=get_static_path('data/no_existing_ids_group_copy.xlsx'))
 
             diff = get_diff(get_static_path('data/no_existing_ids_group.xlsx'),
                             get_static_path('data/no_existing_ids_group_copy.xlsx'))
@@ -159,7 +138,7 @@ class TestVariableIDs(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             with use_copy_of(get_static_path('data/duplicate_ids.xlsx')):
                 handler = OpenpyxlTableHandler()
-                handler.load_definitions("params", filename=get_static_path('data/duplicate_ids_copy.xlsx'), id_flag=True)
+                handler.correct_ids(filename=get_static_path('data/duplicate_ids_copy.xlsx'))
 
         self.assertTrue("Duplicate ID variable " in str(context.exception))
 
@@ -167,19 +146,15 @@ class TestVariableIDs(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             with use_copy_of(get_static_path('data/duplicate_ids_group.xlsx')):
                 handler = OpenpyxlTableHandler()
-                handler.load_definitions("params",
-                                         filename=get_static_path('data/duplicate_ids_group_copy.xlsx'),
-                                         id_flag=True,
-                                         with_group=True,
-                                         groupings=['UK', 'DE'],
-                                         group_vars=['power_laptop', 'energy_intensity_network'])
+                handler.correct_ids(filename=get_static_path('data/duplicate_ids_group_copy.xlsx'))
 
         self.assertTrue("Duplicate ID variable " in str(context.exception))
 
+    @unittest.skip("ID flag no longer used")
     def test_no_id_flag(self):
         with use_copy_of(get_static_path('data/no_existing_ids.xlsx')):
             handler = OpenpyxlTableHandler()
-            handler.load_definitions("params", filename=get_static_path('data/no_existing_ids_copy.xlsx'))
+            handler.correct_ids(filename=get_static_path('data/no_existing_ids_copy.xlsx'))
 
             diff = get_diff(get_static_path('data/no_existing_ids.xlsx'),
                             get_static_path('data/no_existing_ids_copy.xlsx'))
@@ -190,9 +165,7 @@ class TestVariableIDs(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             with use_copy_of(get_static_path('data/no_id_column.xlsx')):
                 handler = OpenpyxlTableHandler()
-                handler.load_definitions("params",
-                                         filename=get_static_path('data/no_id_column_copy.xlsx'),
-                                         id_flag=True)
+                handler.correct_ids(filename=get_static_path('data/no_id_column_copy.xlsx'))
 
         self.assertTrue(" has no id column" in str(context.exception),
                         f"' has no id column' not found in {str(context.exception)}")
@@ -201,12 +174,7 @@ class TestVariableIDs(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             with use_copy_of(get_static_path('data/no_id_column_group.xlsx')):
                 handler = OpenpyxlTableHandler()
-                handler.load_definitions("params",
-                                         filename=get_static_path('data/no_id_column_group_copy.xlsx'),
-                                         id_flag=True,
-                                         with_group=True,
-                                         groupings=['UK', 'DE'],
-                                         group_vars=['power_laptop', 'energy_intensity_network'])
+                handler.correct_ids(filename=get_static_path('data/no_id_column_group_copy.xlsx'))
 
         self.assertTrue(" has no id column" in str(context.exception),
                         f"' has no id column' not found in {str(context.exception)}")
@@ -215,9 +183,7 @@ class TestVariableIDs(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             with use_copy_of(get_static_path('data/multiple_id_columns.xlsx')):
                 handler = OpenpyxlTableHandler()
-                handler.load_definitions("params",
-                                         filename=get_static_path('data/multiple_id_columns_copy.xlsx'),
-                                         id_flag=True)
+                handler.correct_ids(filename=get_static_path('data/multiple_id_columns_copy.xlsx'))
 
         self.assertTrue(" has multiple id columns" in str(context.exception),
                         f"' has multiple id columns' not found in {str(context.exception)}")
@@ -226,12 +192,7 @@ class TestVariableIDs(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             with use_copy_of(get_static_path('data/multiple_id_columns_group.xlsx')):
                 handler = OpenpyxlTableHandler()
-                handler.load_definitions("params",
-                                         filename=get_static_path('data/multiple_id_columns_group_copy.xlsx'),
-                                         id_flag=True,
-                                         with_group=True,
-                                         groupings=['UK', 'DE'],
-                                         group_vars=['power_laptop', 'energy_intensity_network'])
+                handler.correct_ids(filename=get_static_path('data/multiple_id_columns_group_copy.xlsx'))
 
         self.assertTrue(" has multiple id columns" in str(context.exception),
                         f"' has multiple id columns' not found in {str(context.exception)}")
