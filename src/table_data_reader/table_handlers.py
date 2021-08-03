@@ -506,10 +506,14 @@ class TableParameterLoader(object):
     def load_parameters(self, sheet_name, **kwargs):
         # todo: work out what is going on here and comment it
 
+        # load the data in from the spreadsheet (perfectly good, useable data)
         parameter_definitions = self.load_parameter_definitions(sheet_name=sheet_name, **kwargs)
         params = []
 
+        # get a list of parameter names from some weird hardcoded thing
+        # todo: ask why
         param_name_map = param_name_maps[int(self.definition_version)]
+
         for _def in parameter_definitions:
             # substitute names from the headers with the kwargs names in the Parameter and Distributions classes
             # e.g. 'variable' -> 'name', 'module' -> 'module_name', etc
@@ -520,7 +524,7 @@ class TableParameterLoader(object):
                         parameter_kwargs_def[param_name_map[k]] = v
                     else:
                         parameter_kwargs_def[k] = v
-                elif kwargs.get('with_group') and k in kwargs['groupings']:
+                elif kwargs.get('with_group') and k in kwargs['group_vars']:
                     parameter_kwargs_def[k] = {}
                     for l, w in _def[k].items():
                         if l in param_name_map:
