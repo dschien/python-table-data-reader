@@ -93,8 +93,8 @@ setup(
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
     python_requires='>=3.6',
-    install_requires=install_requirements,
-    extras_require=extra_requirements,
+    # install_requires=install_requirements,
+    # extras_require=extra_requirements,
     entry_points={
         'console_scripts': [
             'table-data-reader = table_data_reader.cli:main',
