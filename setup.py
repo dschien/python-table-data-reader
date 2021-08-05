@@ -23,7 +23,7 @@ def read(*names, **kwargs):
     ) as fh:
         return fh.read()
 
-
+"""
 install_requirements = [
     'openpyxl',
     'scipy',
@@ -45,13 +45,12 @@ extra_requirements = {
         # 'pint @        git+https://github.com/hgrecco/pint.git@f356379c15c1cb5d211c795872ac9e9284d2358f#egg=pint',
         # 'pint-pandas @ git+https://github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
     ]
-}
+}"""
 
 setup(
     setup_requires=['pbr'],
     pbr=True,
     name='eam-data-tools',
-    version='1.5.0',
     version='1.6.0',
     license='Apache-2.0',
     description='Tool to read model data from a table',
@@ -94,8 +93,6 @@ setup(
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
     python_requires='>=3.6',
-    # install_requires=install_requirements,
-    # extras_require=extra_requirements,
     entry_points={
         'console_scripts': [
             'table-data-reader = table_data_reader.cli:main',
