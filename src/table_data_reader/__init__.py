@@ -22,6 +22,8 @@ from scipy.interpolate import interp1d
 import json
 from typing import Callable
 
+import pint
+
 __author__ = 'schien'
 
 # import pkg_resources  # part of setuptools
@@ -188,7 +190,7 @@ class Parameter(object):
         worse- 'use_time_series' must be present in the settings dict
 
         :param args:
-        :param kwargs:
+        :param kwargs: pass-through to generator
         :return:
         """
         if self.cache is None:
@@ -205,7 +207,6 @@ class Parameter(object):
                            'with_pint_units': settings.get('with_pint_units', False)
                            }
             common_args.update(**self.kwargs)
-
             if settings.get('use_time_series', False):
                 if self.version == 2:
                     generator = GrowthTimeSeriesGenerator(**common_args, times=settings['times'])
@@ -215,6 +216,12 @@ class Parameter(object):
             else:
                 generator = DistributionFunctionGenerator(**common_args)
 
+            # is this is a group variable?
+            # @todo refactor - use 'with_group' as a global switch and auto-lookup country variables as you go along
+            if settings.get('with_group'):
+                kwargs['with_group'] = settings['with_group'] and kwargs['name'] in settings.get('group_vars')
+                kwargs['group_flag'] = kwargs['name'] in settings['group_vars']
+                kwargs['groupings'] = settings['groupings'] if 'groupings' in settings else None
             self.cache = generator.generate_values(*args, **kwargs)
         return self.cache
 
@@ -246,6 +253,25 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         self._multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
         assert type(times.freq) == pd.tseries.offsets.MonthBegin, 'Time index must have monthly frequency'
 
+    def generate_sigmas(self, group=None):
+        if self.kwargs['type'] == 'interp':
+
+            def get_date(record):
+                return datetime.datetime.strptime(record[0], "%Y-%m-%d")
+
+            ref_value = self.kwargs['ref value'][group] if group else self.kwargs['ref value']
+            ref_value_ = sorted(json.loads(ref_value.strip()).items(), key=get_date)
+            intial_value = ref_value_[0][1]
+        else:
+            intial_value = float(self.kwargs['ref value'][group]) if group else float(self.kwargs['ref value'])
+
+        initial_value_proportional_variation = self.kwargs['initial_value_proportional_variation'][
+            group] if group else self.kwargs['initial_value_proportional_variation']
+        variability_ = intial_value * initial_value_proportional_variation
+        logger.debug(f'sampling random distribution with parameters -{variability_}, 0, {variability_}')
+        sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
+        return sigma
+
     def generate_values(self, *args, **kwargs):
         """
         Instantiate a random variable and apply annual growth factors.
@@ -253,7 +279,6 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         :return:
         """
         assert 'ref value' in self.kwargs
-
         # 1. Generate $\mu$
         start_date = self.times[0].to_pydatetime()
         end_date = self.times[-1].to_pydatetime()
@@ -261,35 +286,42 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         if not ref_date:
             raise Exception(f"Ref date not set for variable {kwargs['name']}")
 
-        mu = self.generate_mu(end_date, ref_date, start_date)
+        mu = {}
 
+        if kwargs.get('with_group'):
+            for c in kwargs['groupings']:
+                mu[c] = self.generate_mu(end_date, ref_date, start_date, group=c, **kwargs)
+        else:
+            mu = self.generate_mu(end_date, ref_date, start_date, **kwargs)
         # 3. Generate $\sigma$
         # Prepare array with growth values $\sigma$
         if self.sample_mean_value:
             sigma = np.zeros((len(self.times), self.size))
         else:
-
-            if self.kwargs['type'] == 'interp':
-
-                def get_date(record):
-                    return datetime.datetime.strptime(record[0], "%Y-%m-%d")
-
-                ref_value_ = sorted(json.loads(self.kwargs['ref value'].strip()).items(), key=get_date)
-                intial_value = ref_value_[0][1]
+            if kwargs.get('with_group'):
+                sigma = {}
+                for c in kwargs['groupings']:
+                    sigma[c] = self.generate_sigmas(group=c)
             else:
-                intial_value = float(self.kwargs['ref value'])
-
-            variability_ = intial_value * self.kwargs['initial_value_proportional_variation']
-            logger.debug(f'sampling random distribution with parameters -{variability_}, 0, {variability_}')
-            sigma = np.random.triangular(-1 * variability_, 0, variability_, (len(self.times), self.size))
+                sigma = self.generate_sigmas()
         # logger.debug(ref_date.strftime("%b %d %Y"))
 
         # 4. Prepare growth array for $\alpha_{sigma}$
-        alpha_sigma = growth_coefficients(start_date,
-                                          end_date,
-                                          ref_date,
-                                          self.kwargs['ef_growth_factor'], 1)
-
+        if kwargs.get('with_group'):
+            alpha_sigma = {}
+            for c in kwargs['groupings']:
+                growth_factor = self.kwargs['ef_growth_factor'][c] if isinstance(self.kwargs['ef_growth_factor'],
+                                                                                 dict) else self.kwargs['ef_growth_factor']
+                # growth_factor = self.kwargs['ef_growth_factor'][c]
+                alpha_sigma[c] = growth_coefficients(start_date,
+                                                     end_date,
+                                                     ref_date,
+                                                     growth_factor, 1)
+        else:
+            alpha_sigma = growth_coefficients(start_date,
+                                              end_date,
+                                              ref_date,
+                                              self.kwargs['ef_growth_factor'], 1)
         # 5. Prepare DataFrame
         iterables = [self.times, range(self.size)]
         index_names = ['time', 'samples']
@@ -313,10 +345,26 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         else:
             dtype = 'float64'
 
-        series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
-                           dtype=dtype)
+        if kwargs.get('with_group'):
+            iterables = [self.times, range(self.size), kwargs['groupings']]
+            index_names = ['time', 'samples', 'group']
+            group_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
 
+            if not self.sample_mean_value:
+                alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
+            else:
+                alpha_sigma.update((x, y * sigma) for x, y in alpha_sigma.items())
+            dicts = [alpha_sigma, mu]
+            temp = {}
+            for k in alpha_sigma.keys():
+                temp[k] = [x + y for x, y in zip(list(dicts[0][k]), list(dicts[1][k]))]
+            l = np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
+            series = pd.Series(l, index=group_multi_index, dtype=dtype)
+        else:
+            series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
+                               dtype=dtype)
         # test if df has sub-zero values
+        series.where(series < 0)
         df_sigma__dropna = series.where(series < 0).dropna()
 
         if self.with_pint_units:
@@ -329,19 +377,22 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
 
         return series
 
-    def generate_mu(self, end_date, ref_date, start_date):
-
+    def generate_mu(self, end_date, ref_date, start_date, group=None, **kwargs):
         if self.kwargs['type'] == 'exp':
-            mu_bar = np.full(len(self.times), float(self.kwargs['ref value']))
+            ref_value = self.kwargs['ref value'][group] if group and isinstance(self.kwargs['ref value'], dict) else \
+                self.kwargs['ref value']
+            mu_bar = np.full(len(self.times), float(ref_value))
             # 2. Apply Growth to Mean Values $\alpha_{mu}$
+            growth_factor = self.kwargs['growth_factor'][group] if group and isinstance(
+                self.kwargs['growth_factor'], dict) else self.kwargs['growth_factor']
             alpha_mu = growth_coefficients(start_date,
                                            end_date,
                                            ref_date,
-                                           self.kwargs['growth_factor'], 1)
+                                           growth_factor, 1)
             mu = mu_bar * alpha_mu.ravel()
             mu = mu.reshape(len(self.times), 1)
             return mu
-        if self.kwargs['type'] == 'interp':
+        elif self.kwargs['type'] == 'interp':
             def toTimestamp(d):
                 return calendar.timegm(d.timetuple())
 
@@ -353,8 +404,12 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                 f = interp1d(arr1, arr2, kind=kind, fill_value='extrapolate')
                 return f([toTimestamp(date_val) for date_val in date_range])
 
-            ref_value_ = json.loads(self.kwargs['ref value'].strip())
+            ref_value_ = json.loads(self.kwargs['ref value'][group].strip()) if group and isinstance(
+                self.kwargs['ref value'], dict) else json.loads(
+                self.kwargs['ref value'].strip())
             return interpolate(ref_value_, self.times, self.kwargs['param'])
+        else:
+            raise Exception(f"no variable type set for variable {kwargs['name']}")
 
 
 class ConstantUncertaintyExponentialGrowthTimeSeriesGenerator(DistributionFunctionGenerator):
@@ -629,424 +684,3 @@ class ParameterRepository(object):
         if param in self.parameter_sets.keys():
             return self.parameter_sets[param].scenarios.keys()
 
-
-class TableHandler(object):
-    version: int
-
-    def __init__(self, version=2):
-        self.version = version
-
-    @abstractmethod
-    def load_definitions(self, sheet_name, filename=None, id_flag=False):
-        raise NotImplementedError()
-
-
-class Xlsx2CsvHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag=False):
-        from xlsx2csv import Xlsx2csv
-        data = Xlsx2csv(filename, inmemory=True).convert(None, sheetid=0)
-
-        definitions = []
-
-        _sheet_names = [sheet_name] if sheet_name else [data.keys()]
-
-        for _sheet_name in _sheet_names:
-            sheet = data[_sheet_name]
-
-            header = sheet.header
-            if header[0] != 'variable':
-                continue
-
-            for row in sheet.rows:
-                values = {}
-                for key, cell in zip(header, row):
-                    values[key] = cell
-                definitions.append(values)
-        return definitions
-
-
-class DictReaderStrip(csv.DictReader):
-    @property
-    def fieldnames(self):
-        if self._fieldnames is None:
-            # Initialize self._fieldnames
-            # Note: DictReader is an old-style class, so can't use super()
-            csv.DictReader.fieldnames.fget(self)
-            if self._fieldnames is not None:
-                self._fieldnames = [name.strip() for name in self._fieldnames]
-        return self._fieldnames
-
-
-class CSVHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag=False):
-
-        reader = DictReaderStrip(open(filename, encoding='utf-8-sig'), delimiter=',')
-
-        definitions = []
-
-        _definition_tracking = defaultdict(dict)
-
-        for i, row in enumerate(reader):
-
-            values = {k: v.strip() for k, v in row.items()}
-
-            if not values['variable']:
-                logger.debug(f'ignoring row {i}: {row[0].value}')
-                continue
-            number_columns = []
-            if self.version == 2:
-                number_columns = ['ref value', 'initial_value_proportional_variation', 'mean growth',
-                                  'variability growth']
-
-            if self.version == 1:
-                number_columns = ['param 1',
-                                  'param 2',
-                                  'param 3',
-                                  'CAGR']
-            for key in number_columns:
-                try:
-                    if key in values:
-                        # guard against empty strings
-                        new_val = float(values.get(key, 0) or 0)
-                        values[key] = new_val
-                except:
-                    if 'type' in values and values['type'] == 'interp':
-                        # this is a json array ... @todo can we have more validation on these strings?
-                        continue
-                    else:
-                        raise Exception(
-                            f'Could not convert value <{values[key]}> for key {key} to number in row {i} for variable {values["variable"]}')
-
-            if 'ref date' in values and values['ref date']:
-                if isinstance(values['ref date'], str):
-                    values['ref date'] = datetime.datetime.strptime(values['ref date'], '%d/%m/%Y')
-                    if values['ref date'].day != 1:
-                        logger.warning(
-                            f'ref date truncated to first of month for variable {values["variable"]}')
-                        values['ref date'] = values['ref date'].replace(day=1)
-                else:
-                    raise Exception(
-                        f"{values['ref date']} for variable {values['variable']} is not a date - "
-                        f"check spreadsheet value is a valid day of a month")
-            logger.debug(f'values for {values["variable"]}: {values}')
-            definitions.append(values)
-            scenario = values['scenario'] if values['scenario'] else "n/a"
-
-            if scenario in _definition_tracking[values['variable']]:
-
-                logger.error(
-                    f"Duplicate entry for parameter "
-                    f"with name <{values['variable']}> and <{scenario}> scenario in file")
-                raise ValueError(
-                    f"Duplicate entry for parameter "
-                    f"with name <{values['variable']}> and <{scenario}> scenario in file")
-
-            else:
-                _definition_tracking[values['variable']][scenario] = 1
-        return definitions
-
-
-class PandasCSVHandler(TableHandler):
-
-    def strip(self, text):
-        try:
-            return text.strip()
-        except AttributeError:
-            return text
-
-    def load_definitions(self, sheet_name, filename=None, id_flag=False):
-        self.version = 2
-
-        import pandas as pd
-        df = pd.read_csv(filename, usecols=range(15), index_col=False, parse_dates=['ref date'],
-                         dtype={'initial_value_proportional_variation': 'float64'},
-                         dayfirst=True,
-                         # date_parser=l0ambda x: pd.datetime.strptime(x, '%d-%m-%Y')
-                         )
-        df = df.dropna(subset=['variable', 'ref value'])
-        df.fillna("", inplace=True)
-
-        return df.to_dict(orient='records')
-
-
-class OpenpyxlTableHandler(TableHandler):
-    version: int
-
-    def __init__(self, version=2):
-        super().__init__(version=version)
-        self.highest_id = -1
-        self.id_map = defaultdict(lambda: defaultdict(dict))
-        self.id_column = None
-
-    @staticmethod
-    def get_sheet_range_bounds(filename, sheet_name):
-        import openpyxl
-        wb = openpyxl.load_workbook(filename)
-        sheet = wb[sheet_name]
-        rows = list(sheet.iter_rows())
-        return len(rows)
-
-    def add_ids(self, ws=None, values=None, definitions=None, row_idx=None, id_flag=False,
-                sheet_name=None, **kwargs):
-        """
-        using the id map, assign ids to those variables that have not got an id yet
-        :return:
-        :rtype:
-        """
-        name = values["variable"]
-        scenario = values['scenario'] if values['scenario'] else "default"
-        if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
-            # If this is the first process and it has no ID, set it to 0
-            pid = self.highest_id + 1  # else set it to the highest existing ID plus 1
-            self.highest_id += 1
-            self.id_map[name][scenario] = pid
-            values["id"] = pid
-            logger.debug(f'{name} {scenario}: {values}')
-            definitions[name][scenario]["id"] = pid
-            c = ws.cell(row=row_idx + 2, column=self.id_column)
-            c.value = pid
-            logger.info("ID " + str(pid) + " given to process " + values['variable'])
-
-    def ref_date_handling(self, values: Dict = None, definitions=None, sheet_name=None, id_flag=None,
-                          **kwargs):
-
-        if 'ref date' in values and values['ref date']:
-            if isinstance(values['ref date'], datetime.datetime):
-                # values['ref date'] = datetime.datetime(*xldate_as_tuple(values['ref date'], wb.datemode))
-                if values['ref date'].day != 1:
-                    logger.warning(f'ref date truncated to first of month for variable {values["variable"]}')
-                    values['ref date'] = values['ref date'].replace(day=1)
-            else:
-                raise Exception(
-                    f"{values['ref date']} for variable {values['variable']} is not a date - "
-                    f"check spreadsheet value is a valid day of a month")
-
-        logger.debug(f'values for {values["variable"]}: {values}')
-        name = values['variable']
-        scenario = values['scenario'] if values['scenario'] else "default"
-        # store id's in a map to identify largest existing id
-        if id_flag:
-            if 'id' in values.keys() and (values["id"] or values["id"] == 0):
-                pid = values['id']
-                if name not in self.id_map.keys() or scenario not in self.id_map[name].keys():
-                    # raises exception if the ID already exists
-                    if (any(pid in d.values() for d in self.id_map.values())):
-                        raise Exception("Duplicate ID variable " + name)
-                    else:
-                        self.id_map[name][scenario] = pid
-                        if pid > self.highest_id:
-                            self.highest_id = pid
-        if scenario in definitions[name].keys():
-            logger.error(
-                f"Duplicate entry for parameter "
-                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
-            raise ValueError(
-                f"Duplicate entry for parameter "
-                f"with name <{values['variable']}> and <{scenario}> scenario in sheet {sheet_name}")
-        else:
-            definitions[name][scenario] = values
-
-    def table_visitor(self, wb: Workbook = None, sheet_names: List[str] = None, visitor_function: Callable = None,
-                      definitions=None, id_flag=False):
-        """
-        stub for id management
-
-        :param definitions:
-        :param wb:
-        :type wb:
-        :param sheet_names:
-        :type sheet_names:
-        :param visitor_function:
-        :type visitor_function:
-        :return:
-        :rtype:
-        """
-        if not sheet_names:
-            sheet_names = wb.sheetnames
-        for _sheet_name in sheet_names:
-            if _sheet_name == 'metadata':
-                continue
-            sheet = wb[_sheet_name]
-            rows = list(sheet.iter_rows())
-            header = [cell.value for cell in rows[0]]
-            if header[0] != 'variable':
-                continue
-            if id_flag:
-                # get the id column number
-                self.id_column = header.index('id') + 1
-
-            for i, row in enumerate(rows[1:]):
-                values = {}
-                for key, cell in zip(header, row):
-                    values[key] = cell.value
-                if not values['variable']:
-                    logger.debug(f'ignoring row {i}: {row[0].value}')
-                    continue
-
-                visitor_function(ws=sheet, values=values, definitions=definitions,
-                                 row_idx=i, sheet_name=_sheet_name, id_flag=id_flag, row=row,
-                                 header=header)
-        return definitions
-
-    def load_definitions(self, sheet_name, filename: str = None, id_flag=False):
-        """
-        @todo - document that this not only loads definitions, but also writes the data file, if 'id' flag is True
-        :param sheet_name:
-        :param filename:
-        :param id_flag:
-        :return:
-        """
-        import openpyxl
-        wb = openpyxl.load_workbook(filename, data_only=True)
-
-        definitions = defaultdict(lambda: defaultdict(dict))
-        _sheet_names = [sheet_name] if sheet_name else wb.sheetnames
-        version = 1
-
-        try:
-            sheet = wb['metadata']
-            rows = list(sheet.iter_rows())
-            for row in rows:
-                if row[0].value == 'version':
-                    version = row[1].value
-            self.version = version
-        except:
-            logger.info(f'could not find a sheet with name "metadata" in workbook. defaulting to v2')
-
-        table_visitor_partial = partial(self.table_visitor, wb=wb, sheet_names=_sheet_names,
-                                        definitions=definitions, id_flag=id_flag)
-
-        table_visitor_partial(visitor_function=self.ref_date_handling)
-        if id_flag:
-            table_visitor_partial(visitor_function=self.add_ids)
-            wb.save(filename)
-
-        res = []
-        for var_set in definitions.values():
-            for scenario_var in var_set.values():
-                res.append(scenario_var)
-
-        return res
-        # return [definitions_ .values()]
-        # return definitions
-
-
-class XLWingsTableHandler(TableHandler):
-    def load_definitions(self, sheet_name, filename=None, id_flag=False):
-        import xlwings as xw
-        definitions = []
-        wb = xw.Book(fullname=filename)
-        _sheet_names = [sheet_name] if sheet_name else wb.sheets
-        for _sheet_name in _sheet_names:
-            sheet = wb.sheets[_sheet_name]
-            range = sheet.range('A1').expand()
-            rows = range.rows
-            header = [cell.value for cell in rows[0]]
-
-            # check if this sheet contains parameters or if it documentation
-            if header[0] != 'variable':
-                continue
-
-            total_rows = OpenpyxlTableHandler.get_sheet_range_bounds(filename, _sheet_name)
-            range = sheet.range((1, 1), (total_rows, len(header)))
-            rows = range.rows
-            for row in rows[1:]:
-                values = {}
-                for key, cell in zip(header, row):
-                    values[key] = cell.value
-                definitions.append(values)
-        return definitions
-
-
-class TableParameterLoader(object):
-    definition_version: int
-    """Utility to populate ParameterRepository from spreadsheets.
-
-        The structure of the spreadsheets is:
-
-        | variable | ... |
-        |----------|-----|
-        |   ...    | ... |
-
-        If the first row in a spreadsheet does not contain they keyword 'variable' the sheet is ignored.
-
-       """
-
-    def __init__(self, filename, table_handler='openpyxl', version=2, **kwargs):
-        self.filename = filename
-        self.definition_version = version  # default - will be overwritten by handler
-
-        logger.info(f'Using {table_handler} excel handler')
-        table_handler_instance = None
-        if table_handler == 'csv':
-            table_handler_instance = CSVHandler(version)
-        if table_handler == 'pandas':
-            table_handler_instance = PandasCSVHandler(version)
-        if table_handler == 'openpyxl':
-            table_handler_instance = OpenpyxlTableHandler()
-        if table_handler == 'xlsx2csv':
-            table_handler_instance = Xlsx2CsvHandler()
-        if table_handler == 'xlwings':
-            table_handler_instance = XLWingsTableHandler()
-        self.table_handler: TableHandler = table_handler_instance
-
-    def load_parameter_definitions(self, sheet_name: str = None, id_flag=False):
-        """
-        Load variable text from rows in excel file.
-        If no spreadsheet arg is given, all spreadsheets are loaded.
-        The first cell in the first row in a spreadsheet must contain the keyword 'variable' or the sheet is ignored.
-
-        Any cells used as titles (with no associated value) are also added to the returned dictionary. However, the
-        values associated with each header will be None. For example, given the speadsheet:
-
-        | variable | A | B |
-        |----------|---|---|
-        | Title    |   |   |
-        | Entry    | 1 | 2 |
-
-        The following list of definitions would be returned:
-
-        [ { variable: 'Title', A: None, B: None }
-        , { variable: 'Entry', A: 1   , B: 2    }
-        ]
-
-        :param sheet_name:
-        :return: list of dicts with {header col name : cell value} pairs
-        """
-        definitions = self.table_handler.load_definitions(sheet_name, filename=self.filename, id_flag=id_flag)
-        self.definition_version = self.table_handler.version
-        return definitions
-
-    def load_into_repo(self, repository: ParameterRepository = None, sheet_name: str = None, id_flag=False):
-        """
-        Create a Repo from an excel file.
-        :param repository: the repository to load into
-        :param sheet_name:
-        :return:
-        """
-        repository.add_all(self.load_parameters(sheet_name, id_flag=id_flag))
-
-    def load_parameters(self, sheet_name, id_flag=False):
-
-        parameter_definitions = self.load_parameter_definitions(sheet_name=sheet_name, id_flag=id_flag)
-        params = []
-
-        param_name_map = param_name_maps[int(self.definition_version)]
-
-        for _def in parameter_definitions:
-
-            # substitute names from the headers with the kwargs names in the Parameter and Distributions classes
-            # e.g. 'variable' -> 'name', 'module' -> 'module_name', etc
-            parameter_kwargs_def = {}
-            for k, v in _def.items():
-                if k in param_name_map:
-                    if param_name_map[k]:
-                        parameter_kwargs_def[param_name_map[k]] = v
-                    else:
-                        parameter_kwargs_def[k] = v
-
-            name_ = parameter_kwargs_def['name']
-            del parameter_kwargs_def['name']
-            p = Parameter(name_, version=self.definition_version, **parameter_kwargs_def)
-            params.append(p)
-        return params

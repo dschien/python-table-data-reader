@@ -1,5 +1,5 @@
 scipy
-numpy
+numpy==1.18.0
 pandas==0.24.2
 xlrd
 openpyxl
@@ -7,3 +7,4 @@ pytest
 # pint
 # pint-pandas
 deepdiff
+python-dateutil

@@ -18,17 +18,17 @@ Overview
     :target: https://readthedocs.org/projects/eam-data-tools
     :alt: Documentation Status
 
-.. |travis| image:: https://api.travis-ci.org/dschien/eam-data-tools.svg?branch=master
+.. |travis| image:: https://api.travis-ci.org/sust-cs-uob/eam-data-tools.svg?branch=master
     :alt: Travis-CI Build Status
-    :target: https://travis-ci.org/dschien/eam-data-tools
+    :target: https://travis-ci.org/sust-cs-uob/eam-data-tools
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/dschien/eam-data-tools?branch=master&svg=true
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/sust-cs-uob/eam-data-tools?branch=master&svg=true
     :alt: AppVeyor Build Status
-    :target: https://ci.appveyor.com/project/dschien/eam-data-tools
+    :target: https://ci.appveyor.com/project/sust-cs-uob/eam-data-tools
 
-.. |codecov| image:: https://codecov.io/gh/dschien/eam-data-tools/branch/master/graphs/badge.svg?branch=master
+.. |codecov| image:: https://codecov.io/gh/sust-cs-uob/eam-data-tools/branch/master/graphs/badge.svg?branch=master
     :alt: Coverage Status
-    :target: https://codecov.io/github/dschien/eam-data-tools
+    :target: https://codecov.io/github/sust-cs-uob/eam-data-tools
 
 .. |version| image:: https://img.shields.io/pypi/v/eam-data-tools.svg
     :alt: PyPI Package latest release
@@ -57,7 +57,7 @@ Installation
 
 You can also install the in-development version with::
 
-    pip install https://github.com/dschien/eam-data-tools/archive/master.zip
+    pip install https://github.com/sust-cs-uob/eam-data-tools/archive/master.zip
 
 
 Documentation
