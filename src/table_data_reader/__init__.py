@@ -23,6 +23,7 @@ import json
 from typing import Callable
 
 import pint
+import pint_pandas
 
 __author__ = 'schien'
 
@@ -364,8 +365,9 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
                                dtype=dtype)
         # test if df has sub-zero values
-        series.where(series < 0)
-        df_sigma__dropna = series.where(series < 0).dropna()
+        # series.where(series < 0)
+        # df_sigma__dropna = series.where(series < 0).dropna()
+        df_sigma__dropna = series[series >= 0]
 
         if self.with_pint_units:
             _values = df_sigma__dropna.pint.m
