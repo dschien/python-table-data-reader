@@ -3,6 +3,7 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
+import pint_pandas
 from dateutil import relativedelta
 from os import path
 
@@ -42,7 +43,7 @@ class CSVParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2016-01-01', '2017-01-01', freq='MS'),
                     'sample_mean_value': False, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings).data
+        val = p(settings).values.data
         assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
 
@@ -56,7 +57,7 @@ class PandasCSVParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2016-01-01', '2017-01-01', freq='MS'),
                     'sample_mean_value': False, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings).data
+        val = p(settings).values.data
         assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
 
@@ -71,7 +72,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2016-01-01', '2017-01-01', freq='MS'),
                     'sample_mean_value': False, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings).data
+        val = p(settings).values.data
         assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
     def test_parameter_getvalue_linear(self):
@@ -97,7 +98,7 @@ class ExcelParameterLoaderTestCase(unittest.TestCase):
 
         settings = {'sample_size': 3, 'times': pd.date_range('2010-01-01', '2010-12-01', freq='MS'),
                     'sample_mean_value': True, 'use_time_series': True, 'with_pint_units': True}
-        val = p(settings).data
+        val = p(settings).values.data
         assert abs(stats.shapiro(val)[0] - 0.9) < 0.1
 
     def test_column_order(self):
