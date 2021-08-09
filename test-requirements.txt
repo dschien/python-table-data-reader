@@ -1,9 +1,0 @@
-scipy
-numpy
-pandas==0.24.2
-xlrd
-openpyxl
-pytest
-# pint
-# pint-pandas
-deepdiff
