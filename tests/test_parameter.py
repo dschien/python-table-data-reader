@@ -15,6 +15,7 @@ class ParameterTestCase(unittest.TestCase):
 
         assert abs(stats.shapiro(a)[0] - 0.9) < 0.1
 
+    @unittest.skip('no assertion')
     def test_ExponentialGrowthTimeSeriesDistributionFunctionParameter_generate_values(self):
         p = Parameter('test', module_name='numpy.random', distribution_name='normal',
                       param_a=0,
@@ -32,6 +33,7 @@ class ParameterTestCase(unittest.TestCase):
         print(a)
         # assert abs(stats.shapiro(a)[0] - 0.9) < 0.1
 
+    @unittest.skip('no assertion')
     def test_ExponentialGrowthTimeSeriesDistributionFunctionParameter_generate_values_uniform(self):
         p = Parameter('test', module_name='numpy.random', distribution_name='uniform',
                       param_a=1,
@@ -99,6 +101,7 @@ class ParameterTestCase(unittest.TestCase):
         # print(val)
         assert (val == 3).all()
 
+    @unittest.skip('no assertion')
     def test_get_mean_normal(self):
         p = Parameter('a', module_name='numpy.random', distribution_name='normal', param_a=3, param_b=4, )
 

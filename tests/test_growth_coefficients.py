@@ -69,6 +69,7 @@ class MyTestCase(unittest.TestCase):
         # assert np.abs(res.loc[[datetime(2009, 4, 1)]][0] - pow(1.1, 3. / 12)) < 0.00001
 
     # @todo fix test- there is no assertion in here
+    @unittest.skip('no assertion')
     def test_ref_date_in_middle(self):
         """
         If start and end are one month apart, we expect an array of one row of ones of sample size for the ref month
@@ -94,6 +95,7 @@ class MyTestCase(unittest.TestCase):
         print(a.mean(level=0))
 
     # @todo fix test- there is no assertion in here
+    @unittest.skip('no assertion')
     def test_ref_date_in_month_two(self):
         """
         If start and end are one month apart, we expect an array of one row of ones of sample size for the ref month
@@ -119,6 +121,7 @@ class MyTestCase(unittest.TestCase):
         print(a.mean(level=0))
 
     # @todo fix test- there is no assertion in here
+    @unittest.skip('no assertion')
     def test_ref_date_at_start(self):
         """
         If start and end are one month apart, we expect an array of one row of ones of sample size for the ref month
@@ -144,6 +147,7 @@ class MyTestCase(unittest.TestCase):
         print(a.mean(level=0))
 
     # @todo fix test- there is no assertion in here
+    @unittest.skip('no assertion')
     def test_ref_date_at_end(self):
         """
         If start and end are one month apart, we expect an array of one row of ones of sample size for the ref month
@@ -169,6 +173,7 @@ class MyTestCase(unittest.TestCase):
         print(a.mean(level=0))
 
     # @todo fix test- there is no assertion in here
+    @unittest.skip('no assertion')
     def test_ref_date_before(self):
         """
         If start and end are one month apart, we expect an array of one row of ones of sample size for the ref month
@@ -195,6 +200,7 @@ class MyTestCase(unittest.TestCase):
         print(a.mean(level=0))
 
     # @todo fix test- there is no assertion in here
+    @unittest.skip('no assertion')
     def test_ref_date_after(self):
         """
         If start and end are one month apart, we expect an array of one row of ones of sample size for the ref month

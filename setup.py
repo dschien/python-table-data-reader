@@ -23,29 +23,6 @@ def read(*names, **kwargs):
     ) as fh:
         return fh.read()
 
-"""
-install_requirements = [
-    'openpyxl',
-    'scipy',
-    'xlrd',
-    'pandas==0.24.2',
-    'pint',
-    'pint-pandas-fork',
-    'numpy',
-    'python-dateutil',
-]
-
-extra_requirements = {
-    "test": ["pytest", "pytest-cov", "codecov", "coveralls", "nbval"],
-    # @todo - remove xlrd dependency
-    'excel': ['openpyxl', 'xlrd'],
-    "units": [
-        # below non-pypi references break pypi package
-        # waiting for pint 0.12 release...
-        # 'pint @        git+https://github.com/hgrecco/pint.git@f356379c15c1cb5d211c795872ac9e9284d2358f#egg=pint',
-        # 'pint-pandas @ git+https://github.com/hgrecco/pint-pandas.git#egg=pint-pandas'
-    ]
-}"""
 
 setup(
     setup_requires=['pbr'],

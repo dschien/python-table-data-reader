@@ -22,6 +22,7 @@ class ParameterRepositoryTestCase(unittest.TestCase):
 
         assert param.cache == None
 
+    @unittest.skip('no assertion')
     def test_add_parameter(self):
         p = Parameter('test')
 

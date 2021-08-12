@@ -125,6 +125,8 @@ class DistributionFunctionGenerator(object):
         :param args:
         :param kwargs:
         :return: sample as vector of given size
+
+        # todo: this will break if it receives data from a spreadsheet with no module column (almost all of them)
         """
         sample_size = kwargs.get('size', self.size)
 
@@ -278,6 +280,8 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         Instantiate a random variable and apply annual growth factors.
 
         :return:
+
+        todo: this is very long and opaque
         """
         assert 'ref value' in self.kwargs
         # 1. Generate $\mu$
