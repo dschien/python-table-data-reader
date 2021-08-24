@@ -359,12 +359,17 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                 alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
             else:
                 alpha_sigma.update((x, y * sigma) for x, y in alpha_sigma.items())
-            dicts = [alpha_sigma, mu]
             temp = {}
-            for k in alpha_sigma.keys():
-                temp[k] = [alpha_sigma[k][i] + mu[k][i] for i in range(len(alpha_sigma[k]))]
-            l = np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
-            series = pd.Series(l, index=group_multi_index, dtype=dtype)
+            for group in kwargs['groupings']:
+                temp[group] = [alpha_sigma[group][i] + mu[group][i] for i in range(len(self.times))]
+
+            data = []
+            for i in range(len(self.times)):
+                for j in range(self.size):
+                    for group in kwargs['groupings']:
+                        data.append(temp[group][i][j])
+
+            series = pd.Series(data, index=group_multi_index, dtype=dtype)
         else:
             series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
                                dtype=dtype)
