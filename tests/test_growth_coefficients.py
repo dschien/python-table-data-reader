@@ -49,7 +49,7 @@ class MyTestCase(unittest.TestCase):
         # discard unit info
         a = a.pint.m
 
-        a.mean(level=0).to_csv('check_cagr.csv')
+        # a.mean(level=0).to_csv('check_cagr.csv')
 
         assert (a > 0).all()
 

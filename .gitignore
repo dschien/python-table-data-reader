@@ -73,3 +73,5 @@ docs/_build
 ~$*.xls*
 
 logs/*
+
+check_cagr.csv
