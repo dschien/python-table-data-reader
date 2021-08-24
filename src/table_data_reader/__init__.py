@@ -362,7 +362,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             dicts = [alpha_sigma, mu]
             temp = {}
             for k in alpha_sigma.keys():
-                temp[k] = [x + y for x, y in zip(list(dicts[0][k]), list(dicts[1][k]))]
+                temp[k] = [alpha_sigma[k][i] + mu[k][i] for i in range(len(alpha_sigma[k]))]
             l = np.array([item for sublist in list(temp.values()) for item in sublist]).ravel()
             series = pd.Series(l, index=group_multi_index, dtype=dtype)
         else:
