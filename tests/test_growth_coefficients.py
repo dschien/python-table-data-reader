@@ -17,6 +17,8 @@ class MyTestCase(unittest.TestCase):
         If start and end are one month apart, we expect an array of one row of ones of sample size for the ref month
         and one row with CAGR applied
 
+        todo: this description doesnt match the assertions
+
         :return:
         """
         # samples = 3

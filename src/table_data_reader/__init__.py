@@ -180,7 +180,8 @@ class Parameter(object):
         self.scenario = None
         self.cache = None
 
-        # track the usages of this parameter per process as a list of process-specific variable names that are backed by this parameter
+        # track the usages of this parameter per process as a list of
+        # process-specific variable names that are backed by this parameter
         self.processes = defaultdict(list)
 
         self.kwargs = kwargs
@@ -191,6 +192,7 @@ class Parameter(object):
 
         @todo confusing interface that accepts 'settings' and kwargs  at the same time.
         worse- 'use_time_series' must be present in the settings dict
+        settings, kwargs and args are also ignored after the first call because of caching
 
         :param args:
         :param kwargs: pass-through to generator
@@ -205,11 +207,13 @@ class Parameter(object):
             if not settings:
                 settings = {}
 
-            common_args = {'size': settings.get('sample_size', 1),
-                           'sample_mean_value': settings.get('sample_mean_value', False),
-                           'with_pint_units': settings.get('with_pint_units', False)
-                           }
+            common_args = {
+                'size': settings.get('sample_size', 1),
+                'sample_mean_value': settings.get('sample_mean_value', False),
+                'with_pint_units': settings.get('with_pint_units', False)
+            }
             common_args.update(**self.kwargs)
+
             if settings.get('use_time_series', False):
                 if self.version == 2:
                     generator = GrowthTimeSeriesGenerator(**common_args, times=settings['times'])
@@ -217,6 +221,7 @@ class Parameter(object):
                     generator = ConstantUncertaintyExponentialGrowthTimeSeriesGenerator(**common_args,
                                                                                         times=settings['times'])
             else:
+                # raise ValueError('\'use_time_series\' must be present in the settings dict')
                 generator = DistributionFunctionGenerator(**common_args)
 
             # is this is a group variable?
@@ -355,15 +360,19 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
             index_names = ['time', 'samples', 'group']
             group_multi_index = pd.MultiIndex.from_product(iterables, names=index_names)
 
+            # Multiply each value of alpha_sigma by sigma.
             if not self.sample_mean_value:
-                alpha_sigma.update((x, y * sigma[x]) for x, y in alpha_sigma.items())
+                alpha_sigma.update((group, value * sigma[group]) for group, value in alpha_sigma.items())
             else:
-                alpha_sigma.update((x, y * sigma) for x, y in alpha_sigma.items())
+                alpha_sigma.update((group, value * sigma) for group, value in alpha_sigma.items())
+
             temp = {}
             for group in kwargs['groupings']:
+                # Compute values from sigmas and mus.
                 temp[group] = [alpha_sigma[group][i] + mu[group][i] for i in range(len(self.times))]
 
             data = []
+            # Rearrange data to match index order.
             for i in range(len(self.times)):
                 for j in range(self.size):
                     for group in kwargs['groupings']:
@@ -373,9 +382,8 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
         else:
             series = pd.Series(((sigma * alpha_sigma) + mu.reshape(months, 1)).ravel(), index=_multi_index,
                                dtype=dtype)
+
         # test if df has sub-zero values
-        # series.where(series < 0)
-        # df_sigma__dropna = series.where(series < 0).dropna()
         df_sigma__dropna = series[series >= 0]
 
         if self.with_pint_units:
