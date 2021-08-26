@@ -20,7 +20,7 @@ class TableHandler(object):
         self.version = version
 
     @abstractmethod
-    def load_definitions(self, sheet_name, filename=None, id_flag=False, **kwargs):
+    def load_definitions(self, sheet_name, filename=None, id_flag=False, **kwargs):     # pragma: no cover
         raise NotImplementedError()
 
 
