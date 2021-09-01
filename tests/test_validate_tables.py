@@ -64,3 +64,81 @@ class TestValidateTables(unittest.TestCase):
             handler.load_definitions(None, filename=get_static_path('no_type.xlsx'))
 
         assert_exception_message(context.exception, 'Table is missing type column for sheet params')
+
+    def test_no_param(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_param.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing param column for sheet params')
+
+    def test_no_ref_value(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_ref_value.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing ref value column for sheet params')
+
+    def test_no_ref_date(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_ref_date.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing ref date column for sheet params')
+
+    def test_no_mean_growth(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_mean_growth.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing mean growth column for sheet params')
+
+    def test_no_initial_value_proportional_variation(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_initial_value_proportional_variation.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing initial_value_proportional_variation column for '
+                                                    'sheet params')
+
+    def test_no_variability_growth(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_variability_growth.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing variability growth column for sheet params')
+
+    def test_no_unit(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_unit.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing unit column for sheet params')
+
+    def test_no_user_name(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_user_name.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing user name column for sheet params')
+
+    def test_no_id(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_id.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing id column for sheet params')
+
+    def test_no_order(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_order.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing order column for sheet params')
+
+    def test_no_ui_variable(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('no_ui_variable.xlsx'))
+
+        assert_exception_message(context.exception, 'Table is missing ui variable column for sheet params')
