@@ -4,6 +4,8 @@ from collections import defaultdict
 import datetime
 from typing import Dict, List
 from functools import partial
+
+import openpyxl
 from openpyxl import Workbook
 from typing import Callable
 
@@ -12,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 from table_data_reader import param_name_maps, ParameterRepository, Parameter
 
+class TableValidationError(ValueError):
+    pass
 
 class TableHandler(object):
     version: int
@@ -206,7 +210,7 @@ class OpenpyxlTableHandler(TableHandler):
 
         logger.debug(f'values for {entry["variable"]}: {entry}')
         variable_name = entry['variable']
-        scenario = entry['scenario'] if entry['scenario'] else "default"
+        scenario = entry['scenario'] if entry.get('scenario', None) else "default"
 
         if scenario in definitions[variable_name].keys():
             # if this is an inline group row the error doesn't need to be raised as it's normal
@@ -353,6 +357,54 @@ class OpenpyxlTableHandler(TableHandler):
                     else:
                         groups = list(value.keys())
 
+    def assert_workbook_valid(self, workbook: openpyxl.Workbook):
+        has_primary_sheet: bool = False
+
+        for sheetname in workbook.sheetnames:
+            rows = list(workbook[sheetname].iter_rows())
+            if len(rows) == 0:
+                raise TableValidationError(f'Table is missing header row for sheet {sheetname}')
+
+            if rows[0][0].value == 'variable':
+                has_primary_sheet = True
+                self.assert_primary_sheet_valid(rows, sheetname)
+
+        if has_primary_sheet is False:
+            raise TableValidationError('Table has no primary data sheets')
+
+    def assert_primary_sheet_valid(self, rows, sheetname):
+        header = [cell.value for cell in rows[0]]
+        rows = rows[1:]
+
+        indices = self.fetch_header_indices(header, sheetname)
+
+    def fetch_header_indices(self, header, sheetname):
+        indices = {}
+
+        self.fetch_header_index(indices, header, 'type', sheetname)
+        self.fetch_header_index(indices, header, 'param', sheetname)
+        self.fetch_header_index(indices, header, 'ref value', sheetname)
+        self.fetch_header_index(indices, header, 'ref date', sheetname)
+        self.fetch_header_index(indices, header, 'mean growth', sheetname)
+        self.fetch_header_index(indices, header, 'initial_value_proportional_variation', sheetname)
+        self.fetch_header_index(indices, header, 'variability growth', sheetname)
+        self.fetch_header_index(indices, header, 'unit', sheetname)
+        self.fetch_header_index(indices, header, 'user name', sheetname)
+        self.fetch_header_index(indices, header, 'id', sheetname)
+        self.fetch_header_index(indices, header, 'order', sheetname)
+        self.fetch_header_index(indices, header, 'ui variable', sheetname)
+
+        return indices
+
+    def fetch_header_index(self, indices, header, column_header, sheetname):
+        try:
+            indices[column_header] = header.index(column_header)
+        except ValueError:
+            raise TableValidationError(f'Table is missing {column_header} column for sheet {sheetname}')
+
+    def fetch_optional_header_index(self, indices, header, column_header):
+        pass
+
     def load_definitions(self, sheet_name=None, filename: str = None, **kwargs):
         """
         Loads definitions from the excel workbook
@@ -365,6 +417,8 @@ class OpenpyxlTableHandler(TableHandler):
         """
         from openpyxl import load_workbook
         wb = load_workbook(filename, data_only=True)
+
+        self.assert_workbook_valid(wb)
 
         # maps variables to their scenario and group-specific values.
         inline_groupings = {}
