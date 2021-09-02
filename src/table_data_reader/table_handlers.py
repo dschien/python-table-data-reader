@@ -214,7 +214,7 @@ class OpenpyxlTableHandler(TableHandler):
 
         if scenario in definitions[variable_name].keys():
             # if this is an inline group row the error doesn't need to be raised as it's normal
-            if entry['group'] is not None:
+            if entry.get('group', None) is not None:
                 return None
             logger.error(
                 f"Duplicate entry for parameter "
