@@ -2,12 +2,15 @@ import csv
 from abc import abstractmethod
 from collections import defaultdict
 import datetime
+from numbers import Number
 from typing import Dict, List
 from functools import partial
 
 import openpyxl
 from openpyxl import Workbook
 from typing import Callable
+
+import json
 
 import logging
 logger = logging.getLogger(__name__)
@@ -383,6 +386,10 @@ class OpenpyxlTableHandler(TableHandler):
         self.assert_no_invalid_primary_headers(header, sheetname)
         indices = self.fetch_primary_header_indices(header, sheetname)
 
+        for i, row in enumerate(rows):
+            if row[0].value is not None:
+                self.assert_primary_row_valid(row, i+2, indices, sheetname)
+
     def assert_no_invalid_primary_headers(self, header, sheetname):
         if 'group' in header:
             raise TableValidationError(f'{sheetname} is a primary sheet. It cannot have a \'group\' column.')
@@ -428,6 +435,49 @@ class OpenpyxlTableHandler(TableHandler):
             if warn:
                 logger.warning(f'Table is missing {column_header} column for sheet {sheetname}')
             indices[column_header] = None
+
+    def assert_primary_row_valid(self, row, row_num: int, indices: Dict[str, int], sheetname: int):
+        if not isinstance(row[0].value, str):
+            raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not a string')
+
+        variable = row[0].value
+
+        var_type = row[indices['type']].value
+        if not var_type in ['exp', 'interp']:
+            raise TableValidationError(f'type for {variable} on sheet {sheetname} was {var_type}. Must be one of '
+                                       f'[\'exp\', \'interp\']')
+
+        param = row[indices['param']].value
+        if var_type == 'interp':
+            if not param in ['linear']:
+                raise TableValidationError(f'param for {variable} on sheet {sheetname} was {param}. Must be one of '
+                                           f'[\'linear\']')
+        else:
+            if param is not None:
+                logger.warning(f'param not empty for non-interp variable {variable} on sheet {sheetname}')
+
+        ref_value = row[indices['ref value']].value
+        if var_type == 'interp':
+            try:
+                ref_value_json = json.loads(ref_value)
+            except json.JSONDecodeError:
+                raise TableValidationError(f'ref value for interp variable {variable} on sheet {sheetname} was '
+                                           f'{ref_value}. Must be valid json')
+            dates = list(ref_value_json.keys())
+            if not len(dates) == 2:
+                raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
+                                           f'have two keys')
+            try:
+                datetime.datetime.strptime(dates[0], '%Y-%m-%d')
+                datetime.datetime.strptime(dates[1], '%Y-%m-%d')
+            except ValueError:
+                raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
+                                           f'have date keys, in the format YYYY-MM-DD')
+
+            if not isinstance(ref_value_json[dates[0]], Number) or\
+               not isinstance(ref_value_json[dates[1]], Number):
+                raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
+                                           f'have numeric values')
 
     def load_definitions(self, sheet_name=None, filename: str = None, **kwargs):
         """
