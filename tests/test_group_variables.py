@@ -18,6 +18,7 @@ def get_static_path(filename):
 
 
 class TestGroupVariables(unittest.TestCase):
+    @unittest.skip('inline group variables no longer supported')
     def test_group_single_sheet(self):
         handler = OpenpyxlTableHandler()
 
@@ -42,6 +43,7 @@ class TestGroupVariables(unittest.TestCase):
             'DE': 0.07
         }
 
+    @unittest.skip('inline group variables no longer supported')
     def test_multiple_groups_single_sheet(self):
         handler = OpenpyxlTableHandler()
 
@@ -142,6 +144,7 @@ class TestGroupVariables(unittest.TestCase):
             'DE': 0
         }
 
+    @unittest.skip('inline group variables no longer supported')
     def test_multiple_groups_some_sheets(self):
         handler = OpenpyxlTableHandler()
 
@@ -192,7 +195,7 @@ class TestGroupVariables(unittest.TestCase):
         self.assertTrue("Expected values for groups: " in str(context.exception),
                         f"'Expected values for groups: ' not found in {str(context.exception)}")
 
-
+    @unittest.skip('inline group variables no longer supported')
     def test_inconsistent_groups_single_sheet(self):
         handler = OpenpyxlTableHandler()
 
@@ -205,6 +208,7 @@ class TestGroupVariables(unittest.TestCase):
         self.assertTrue("Expected values for groups: " in str(context.exception),
                         f"'Expected values for groups: ' not found in {str(context.exception)}")
 
+    @unittest.skip('inline group variables no longer supported')
     def test_inconsistent_groups_some_sheets(self):
         handler = OpenpyxlTableHandler()
 

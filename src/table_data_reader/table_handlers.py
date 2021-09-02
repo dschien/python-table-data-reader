@@ -160,8 +160,8 @@ class OpenpyxlTableHandler(TableHandler):
         """
 
         var = entry["variable"]
-        group = entry["group"]
-        scenario = entry["scenario"] if entry["scenario"] else "default"
+        group = entry.get("group", None)
+        scenario = entry["scenario"] if entry.get("scenario", None) else "default"
         if group is not None:
             if var not in group_variables.keys():
                 group_variables[var] = {}
@@ -231,7 +231,11 @@ class OpenpyxlTableHandler(TableHandler):
                 group_values = {}
 
                 # set parameters that should be constant across each subvariable in the group to the same value
-                group_constants = ["variable", "scenario", "type", "param", "unit", "group"]
+                group_constants = ["variable", "type", "param", "unit"]
+                if 'scenario' in keys:
+                    group_constants.append('scenario')
+                if 'group' in keys:
+                    group_constants.append('group')
                 for group_constant in group_constants:
                     keys.remove(group_constant)
                     group_values[group_constant] = entry[group_constant]
