@@ -1,15 +1,8 @@
 import unittest
-import openpyxl
-import pytest
 
-import table_data_reader
-from deepdiff import DeepDiff
 import os
-import re
 
 from table_data_reader.table_handlers import OpenpyxlTableHandler, TableValidationError
-
-from contextlib import contextmanager
 
 
 TEST_DATA_DIRECTORY = 'data/validate_tables'
@@ -142,3 +135,20 @@ class TestValidateTables(unittest.TestCase):
             handler.load_definitions(None, filename=get_static_path('no_ui_variable.xlsx'))
 
         assert_exception_message(context.exception, 'Table is missing ui variable column for sheet params')
+
+    def test_no_description(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertLogs(level='WARNING') as log:
+            handler.load_definitions(None, filename=get_static_path('no_description.xlsx'))
+
+        assert len(log.records) == 1
+        assert log.records[0].message == 'Table is missing description column for sheet params',\
+            f'Expected exception message to be \'Table is missing description column for sheet params\', but was '\
+            f'\'{log.records[0].message}\''
+
+    def test_has_group_primary(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('has_group_primary.xlsx'))
+
+        assert_exception_message(context.exception, 'params is a primary sheet. It cannot have a \'group\' column.')

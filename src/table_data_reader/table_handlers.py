@@ -376,9 +376,14 @@ class OpenpyxlTableHandler(TableHandler):
         header = [cell.value for cell in rows[0]]
         rows = rows[1:]
 
-        indices = self.fetch_header_indices(header, sheetname)
+        self.assert_no_invalid_primary_headers(header, sheetname)
+        indices = self.fetch_primary_header_indices(header, sheetname)
 
-    def fetch_header_indices(self, header, sheetname):
+    def assert_no_invalid_primary_headers(self, header, sheetname):
+        if 'group' in header:
+            raise TableValidationError(f'{sheetname} is a primary sheet. It cannot have a \'group\' column.')
+
+    def fetch_primary_header_indices(self, header, sheetname):
         indices = {}
 
         self.fetch_header_index(indices, header, 'type', sheetname)
@@ -394,16 +399,31 @@ class OpenpyxlTableHandler(TableHandler):
         self.fetch_header_index(indices, header, 'order', sheetname)
         self.fetch_header_index(indices, header, 'ui variable', sheetname)
 
+        self.fetch_optional_header_index(indices, header, 'description', warn=True, sheetname=sheetname)
+
+        self.fetch_optional_header_index(indices, header, 'label')
+        self.fetch_optional_header_index(indices, header, 'source')
+        self.fetch_optional_header_index(indices, header, 'comment')
+        self.fetch_optional_header_index(indices, header, 'control')
+        self.fetch_optional_header_index(indices, header, 'scenario notes')
+        self.fetch_optional_header_index(indices, header, 'override')
+
         return indices
 
-    def fetch_header_index(self, indices, header, column_header, sheetname):
+    def fetch_header_index(self, indices: Dict[str, int], header: List[str], column_header: str, sheetname: str):
         try:
             indices[column_header] = header.index(column_header)
         except ValueError:
             raise TableValidationError(f'Table is missing {column_header} column for sheet {sheetname}')
 
-    def fetch_optional_header_index(self, indices, header, column_header):
-        pass
+    def fetch_optional_header_index(self, indices: Dict[str, int], header: List[str], column_header: str,
+                                    warn: bool = False, sheetname: str = None):
+        try:
+            indices[column_header] = header.index(column_header)
+        except ValueError:
+            if warn:
+                logger.warning(f'Table is missing {column_header} column for sheet {sheetname}')
+            indices[column_header] = None
 
     def load_definitions(self, sheet_name=None, filename: str = None, **kwargs):
         """
