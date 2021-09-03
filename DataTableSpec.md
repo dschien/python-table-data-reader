@@ -149,3 +149,12 @@ It consists of key value pairs, with the keys in the first column and values in 
   The author of the table.
 
   Multiple author keys can be used if there is more than one author.
+
+## Changes sheet:
+
+There may also be a meta-sheet for alterations to the workbook, called 'changes'.
+
+This includes changes in upgrading sheet version, or changes made by the program to the sheet.
+
+For example, if the program fills in any missing ids, it will be documented here with the sheet name and cell, etc.
+
