@@ -367,7 +367,7 @@ class OpenpyxlTableHandler(TableHandler):
                     else:
                         groups = list(value.keys())
 
-    def assert_workbook_valid(self, workbook: openpyxl.Workbook):
+    def assert_workbook_valid(self, workbook: openpyxl.Workbook, **kwargs):
         """
         Assert that a workbook is fully valid. Parses each sheet individually.
         :param workbook: The openpyxl workbook object.
@@ -389,7 +389,7 @@ class OpenpyxlTableHandler(TableHandler):
             # group-level sheets have names that are countrified var names.
             # todo NOTE this is subject to change to work around the 31-char sheet name limit! Will require revision.
             elif rows[0][0].value == 'group':
-                pass
+                self.assert_group_sheet_valid(rows, sheetname, **kwargs)
 
         if has_primary_sheet is False:
             raise TableValidationError('Table has no primary data sheets')
@@ -514,12 +514,12 @@ class OpenpyxlTableHandler(TableHandler):
                 raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
                                            f'have numeric values')
 
-    def assert_group_sheet_valid(self, rows, sheetname):
+    def assert_group_sheet_valid(self, rows, sheetname, **kwargs):
         """
         Make sure a given group sheet is also valid.
         Each necessary column must be present, and each row must have correctly formatted corresponding values
 
-        This is done somewhat roughly since structure of group pages is subject to change with aliasing etc.
+        This is fairly hacky since structure of group pages is subject to change with aliasing etc.
         :param rows: List of rows in the sheet to be parsed
         :param sheetname: Name of the group sheet
         :return:
@@ -527,10 +527,21 @@ class OpenpyxlTableHandler(TableHandler):
         header = [cell.value for cell in rows[0]]
         rows = rows[1:]
 
+        minimal_viable_header = ['group', 'scenario', 'ref value', 'mean growth',
+                           'initial_value_proportional_variation', 'variability growth', 'id']
+
+        for column in minimal_viable_header:
+            if column not in header:
+                raise TableValidationError(f'Missing header column {column} in group sheet {sheetname}')
+
+        index_column_map = {header.index(h): h for h in header}
 
         for i, row in enumerate(rows):
             if row[0].value is not None:
-                self.assert_primary_row_valid(row, i + 2, indices, sheetname)
+                self.assert_group_row_valid(row, sheetname, index_column_map, **kwargs)
+
+    def assert_group_row_valid(self, row, sheetname, index_column_map, **kwargs):
+        pass
 
     def load_definitions(self, sheet_name=None, filename: str = None, **kwargs):
         """
@@ -545,7 +556,7 @@ class OpenpyxlTableHandler(TableHandler):
         from openpyxl import load_workbook
         wb = load_workbook(filename, data_only=True)
 
-        self.assert_workbook_valid(wb)
+        self.assert_workbook_valid(wb, **kwargs)
 
         # maps variables to their scenario and group-specific values.
         inline_groupings = {}
