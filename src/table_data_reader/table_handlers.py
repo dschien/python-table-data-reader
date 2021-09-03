@@ -13,12 +13,15 @@ from typing import Callable
 import json
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 from table_data_reader import param_name_maps, ParameterRepository, Parameter
 
+
 class TableValidationError(ValueError):
     pass
+
 
 class TableHandler(object):
     version: int
@@ -27,7 +30,7 @@ class TableHandler(object):
         self.version = version
 
     @abstractmethod
-    def load_definitions(self, sheet_name, filename=None, id_flag=False, **kwargs):     # pragma: no cover
+    def load_definitions(self, sheet_name, filename=None, id_flag=False, **kwargs):  # pragma: no cover
         raise NotImplementedError()
 
 
@@ -280,7 +283,7 @@ class OpenpyxlTableHandler(TableHandler):
                 ref_dates = list(group_values['ref date'].values())
                 # Ensures that every element in ref_dates is the same
                 # todo: see if we can remove this restriction
-                assert ref_dates.count(ref_dates[0]) == len(ref_dates),\
+                assert ref_dates.count(ref_dates[0]) == len(ref_dates), \
                     f"Different groups have different ref dates for {entry['variable']}"
                 group_values['ref date'] = ref_dates[0]
 
@@ -359,27 +362,45 @@ class OpenpyxlTableHandler(TableHandler):
             for value in variable.values():
                 if isinstance(value, dict):
                     if groups is not None:
-                        assert list(value.keys()) == groups,\
-                               f"Expected values for groups: {groups}, but got values for groups: {list(value.keys())}"
+                        assert list(value.keys()) == groups, \
+                            f"Expected values for groups: {groups}, but got values for groups: {list(value.keys())}"
                     else:
                         groups = list(value.keys())
 
     def assert_workbook_valid(self, workbook: openpyxl.Workbook):
+        """
+        Assert that a workbook is fully valid. Parses each sheet individually.
+        :param workbook: The openpyxl workbook object.
+        :return:
+        """
         has_primary_sheet: bool = False
 
         for sheetname in workbook.sheetnames:
             rows = list(workbook[sheetname].iter_rows())
-            if len(rows) == 0:
+            if len(rows) == 0 and sheetname not in ['metadata', 'changes']:
                 raise TableValidationError(f'Table is missing header row for sheet {sheetname}')
 
+            # the primary sheet has no constricted name, but convention is to call it 'params'
+            # it is simply the only sheet that has 'variable' in cell A1.
             if rows[0][0].value == 'variable':
                 has_primary_sheet = True
                 self.assert_primary_sheet_valid(rows, sheetname)
+
+            # group-level sheets have names that are countrified var names.
+            # todo NOTE this is subject to change to work around the 31-char sheet name limit! Will require revision.
+            elif rows[0][0].value == 'group':
+                pass
 
         if has_primary_sheet is False:
             raise TableValidationError('Table has no primary data sheets')
 
     def assert_primary_sheet_valid(self, rows, sheetname):
+        """
+        Assert that a primary sheet is fully valid, both in rows and columns.
+        :param rows: List of rows in the sheet to be parsed
+        :param sheetname: Name of the sheet to be parsed
+        :return:
+        """
         header = [cell.value for cell in rows[0]]
         rows = rows[1:]
 
@@ -388,13 +409,19 @@ class OpenpyxlTableHandler(TableHandler):
 
         for i, row in enumerate(rows):
             if row[0].value is not None:
-                self.assert_primary_row_valid(row, i+2, indices, sheetname)
+                self.assert_primary_row_valid(row, i + 2, indices, sheetname)
 
     def assert_no_invalid_primary_headers(self, header, sheetname):
         if 'group' in header:
             raise TableValidationError(f'{sheetname} is a primary sheet. It cannot have a \'group\' column.')
 
     def fetch_primary_header_indices(self, header, sheetname):
+        """
+        Generates a dict Str->Int of header names to the index of that column in the primary sheet.
+        :param header:
+        :param sheetname:
+        :return:
+        """
         indices = {}
 
         self.fetch_header_index(indices, header, 'type', sheetname)
@@ -437,6 +464,14 @@ class OpenpyxlTableHandler(TableHandler):
             indices[column_header] = None
 
     def assert_primary_row_valid(self, row, row_num: int, indices: Dict[str, int], sheetname: int):
+        """
+        Given a specific row in a primary sheet, check the vals and ensure they are appropriate.
+        :param row: Contains the row as a list of vals.
+        :param row_num: Row number in the sheet, for error logging.
+        :param indices: A dictionary of header names to their index.
+        :param sheetname: Name of the primary sheet to be parsed.
+        :return:
+        """
         if not isinstance(row[0].value, str):
             raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not a string')
 
@@ -474,10 +509,28 @@ class OpenpyxlTableHandler(TableHandler):
                 raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
                                            f'have date keys, in the format YYYY-MM-DD')
 
-            if not isinstance(ref_value_json[dates[0]], Number) or\
-               not isinstance(ref_value_json[dates[1]], Number):
+            if not isinstance(ref_value_json[dates[0]], Number) or \
+                not isinstance(ref_value_json[dates[1]], Number):
                 raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
                                            f'have numeric values')
+
+    def assert_group_sheet_valid(self, rows, sheetname):
+        """
+        Make sure a given group sheet is also valid.
+        Each necessary column must be present, and each row must have correctly formatted corresponding values
+
+        This is done somewhat roughly since structure of group pages is subject to change with aliasing etc.
+        :param rows: List of rows in the sheet to be parsed
+        :param sheetname: Name of the group sheet
+        :return:
+        """
+        header = [cell.value for cell in rows[0]]
+        rows = rows[1:]
+
+
+        for i, row in enumerate(rows):
+            if row[0].value is not None:
+                self.assert_primary_row_valid(row, i + 2, indices, sheetname)
 
     def load_definitions(self, sheet_name=None, filename: str = None, **kwargs):
         """
