@@ -33,7 +33,7 @@ Any sheet with 'variable' in cell A1 is a primary data sheet. There must be at l
     Requires param to be provided. Changes expected format of ref value.
 
 - #### param
-  The type of interpolation to use. Ignored if type is exp.
+  The type of interpolation to use. Ignored if type is not interp.
 
   todo: Linear works, not sure what else.
 
