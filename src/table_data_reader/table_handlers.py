@@ -1,4 +1,5 @@
 import csv
+import numbers
 from abc import abstractmethod
 from collections import defaultdict
 import datetime
@@ -498,21 +499,24 @@ class OpenpyxlTableHandler(TableHandler):
             except json.JSONDecodeError:
                 raise TableValidationError(f'ref value for interp variable {variable} on sheet {sheetname} was '
                                            f'{ref_value}. Must be valid json')
-            dates = list(ref_value_json.keys())
-            if not len(dates) == 2:
-                raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
-                                           f'have two keys')
-            try:
-                datetime.datetime.strptime(dates[0], '%Y-%m-%d')
-                datetime.datetime.strptime(dates[1], '%Y-%m-%d')
-            except ValueError:
-                raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
-                                           f'have date keys, in the format YYYY-MM-DD')
+            self.validate_json_interp_value(ref_value_json, variable, sheetname)
 
-            if not isinstance(ref_value_json[dates[0]], Number) or \
-                not isinstance(ref_value_json[dates[1]], Number):
-                raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
-                                           f'have numeric values')
+    def validate_json_interp_value(self, ref_value_json, variable, sheetname):
+        dates = list(ref_value_json.keys())
+        if not len(dates) == 2:
+            raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
+                                       f'have two keys')
+        try:
+            datetime.datetime.strptime(dates[0], '%Y-%m-%d')
+            datetime.datetime.strptime(dates[1], '%Y-%m-%d')
+        except ValueError:
+            raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
+                                       f'have date keys, in the format YYYY-MM-DD')
+
+        if not isinstance(ref_value_json[dates[0]], Number) or \
+            not isinstance(ref_value_json[dates[1]], Number):
+            raise TableValidationError(f'ref value json for interp variable {variable} on sheet {sheetname} must '
+                                       f'have numeric values')
 
     def assert_group_sheet_valid(self, rows, sheetname, **kwargs):
         """
@@ -528,20 +532,41 @@ class OpenpyxlTableHandler(TableHandler):
         rows = rows[1:]
 
         minimal_viable_header = ['group', 'scenario', 'ref value', 'mean growth',
-                           'initial_value_proportional_variation', 'variability growth', 'id']
+                           'initial_value_proportional_variation', 'variability growth']
 
         for column in minimal_viable_header:
             if column not in header:
                 raise TableValidationError(f'Missing header column {column} in group sheet {sheetname}')
 
-        index_column_map = {header.index(h): h for h in header}
+        index_column_map = {h: header.index(h) for h in header}
 
         for i, row in enumerate(rows):
             if row[0].value is not None:
-                self.assert_group_row_valid(row, sheetname, index_column_map, **kwargs)
+                self.assert_group_row_valid(row, i+2, sheetname, index_column_map, **kwargs)
 
-    def assert_group_row_valid(self, row, sheetname, index_column_map, **kwargs):
-        pass
+    def assert_group_row_valid(self, row, row_num, sheetname, index_column_map, **kwargs):
+        import numbers
+        if not isinstance(row[index_column_map['group']].value, str):
+            raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not a string')
+        if not (isinstance(row[index_column_map['initial_value_proportional_variation']].value, numbers.Number)\
+                or row[index_column_map['initial_value_proportional_variation']].value is None):
+            raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not numeric')
+        if not (isinstance(row[index_column_map['variability growth']].value, numbers.Number)\
+                or row[index_column_map['variability growth']].value is None):
+            raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not numeric')
+        if isinstance(row[index_column_map['scenario']].value, numbers.Number):
+            raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} should not be numeric')
+
+        if isinstance(row[index_column_map['ref value']].value, numbers.Number):
+            pass
+        else:
+            try:
+                ref_value_json = json.loads(row[index_column_map['ref value']].value)
+            except json.JSONDecodeError:
+                raise TableValidationError(f'ref value for country variable on sheet {sheetname} was '
+                                           f'{row[index_column_map["ref value"]].value}. Must be valid json, '
+                                           f'or numeric if an exp var')
+            self.validate_json_interp_value(ref_value_json, sheetname, sheetname)
 
     def load_definitions(self, sheet_name=None, filename: str = None, **kwargs):
         """
