@@ -384,7 +384,7 @@ class GrowthTimeSeriesGenerator(DistributionFunctionGenerator):
                                dtype=dtype)
 
         # test if df has sub-zero values
-        df_sigma__dropna = series[series >= 0]
+        df_sigma__dropna = series[series <= 0]
 
         if self.with_pint_units:
             _values = df_sigma__dropna.pint.m
