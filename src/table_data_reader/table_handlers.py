@@ -561,6 +561,10 @@ class OpenpyxlTableHandler(TableHandler):
         if not (isinstance(row[index_column_map['initial_value_proportional_variation']].value, numbers.Number)\
                 or row[index_column_map['initial_value_proportional_variation']].value is None):
             raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not numeric')
+        if isinstance(row[index_column_map['initial_value_proportional_variation']].value, numbers.Number)\
+                and row[index_column_map['initial_value_proportional_variation']].value <= 0:
+            raise TableValidationError(f'initial_value_proportional_variation is not positive for variable {sheetname} '
+                                       f'{row[index_column_map["initial_value_proportional_variation"]].value}')
         if not (isinstance(row[index_column_map['variability growth']].value, numbers.Number)\
                 or row[index_column_map['variability growth']].value is None):
             raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not numeric')
