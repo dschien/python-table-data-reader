@@ -385,7 +385,7 @@ class OpenpyxlTableHandler(TableHandler):
             # it is simply the only sheet that has 'variable' in cell A1.
             if rows[0][0].value == 'variable':
                 has_primary_sheet = True
-                self.assert_primary_sheet_valid(rows, sheetname)
+                self.assert_primary_sheet_valid(rows, sheetname, **kwargs)
 
             # group-level sheets have names that are countrified var names.
             # todo NOTE this is subject to change to work around the 31-char sheet name limit! Will require revision.
@@ -395,7 +395,7 @@ class OpenpyxlTableHandler(TableHandler):
         if has_primary_sheet is False:
             raise TableValidationError('Table has no primary data sheets')
 
-    def assert_primary_sheet_valid(self, rows, sheetname):
+    def assert_primary_sheet_valid(self, rows, sheetname, **kwargs):
         """
         Assert that a primary sheet is fully valid, both in rows and columns.
         :param rows: List of rows in the sheet to be parsed
@@ -410,7 +410,7 @@ class OpenpyxlTableHandler(TableHandler):
 
         for i, row in enumerate(rows):
             if row[0].value is not None:
-                self.assert_primary_row_valid(row, i + 2, indices, sheetname)
+                self.assert_primary_row_valid(row, i + 2, indices, sheetname, **kwargs)
 
     def assert_no_invalid_primary_headers(self, header, sheetname):
         if 'group' in header:
@@ -464,7 +464,7 @@ class OpenpyxlTableHandler(TableHandler):
                 logger.warning(f'Table is missing {column_header} column for sheet {sheetname}')
             indices[column_header] = None
 
-    def assert_primary_row_valid(self, row, row_num: int, indices: Dict[str, int], sheetname: int):
+    def assert_primary_row_valid(self, row, row_num: int, indices: Dict[str, int], sheetname: int, **kwargs):
         """
         Given a specific row in a primary sheet, check the vals and ensure they are appropriate.
         :param row: Contains the row as a list of vals.
@@ -506,7 +506,7 @@ class OpenpyxlTableHandler(TableHandler):
         #    raise TableValidationError(f'initial_value_proportional_variation for variable {variable} '
         #                               f'on sheet {sheetname} was '
         #                               f'{var_ivpv}. Must be a numeric value.')
-        if isinstance(var_ivpv, numbers.Number) and var_ivpv <= 0:
+        if isinstance(var_ivpv, numbers.Number) and var_ivpv <= 0 and not kwargs.get('sample_mean', True):
             raise TableValidationError(f'initial_value_proportional_variation for variable {variable} '
                                        f'on sheet {sheetname} was '
                                        f'{var_ivpv}. Must be a positive number.')
@@ -558,16 +558,17 @@ class OpenpyxlTableHandler(TableHandler):
         import numbers
         if not isinstance(row[index_column_map['group']].value, str):
             raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not a string')
-        if not (isinstance(row[index_column_map['initial_value_proportional_variation']].value, numbers.Number)\
-                or row[index_column_map['initial_value_proportional_variation']].value is None):
+
+        var_ivpv = row[index_column_map['initial_value_proportional_variation']].value
+        if not (isinstance(var_ivpv, numbers.Number) or var_ivpv is None):
             raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not numeric')
-        if isinstance(row[index_column_map['initial_value_proportional_variation']].value, numbers.Number)\
-                and row[index_column_map['initial_value_proportional_variation']].value <= 0:
+        if isinstance(var_ivpv, numbers.Number) and var_ivpv <= 0 and not kwargs.get('sample_mean', True):
             raise TableValidationError(f'initial_value_proportional_variation is not positive for variable {sheetname} '
-                                       f'{row[index_column_map["initial_value_proportional_variation"]].value}')
+                                       f'{var_ivpv}')
         if not (isinstance(row[index_column_map['variability growth']].value, numbers.Number)\
                 or row[index_column_map['variability growth']].value is None):
             raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} not numeric')
+
         if isinstance(row[index_column_map['scenario']].value, numbers.Number):
             raise TableValidationError(f'variable on row {row_num} of sheet {sheetname} should not be numeric')
 
