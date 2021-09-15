@@ -501,6 +501,16 @@ class OpenpyxlTableHandler(TableHandler):
                                            f'{ref_value}. Must be valid json')
             self.validate_json_interp_value(ref_value_json, variable, sheetname)
 
+        var_ivpv = row[indices['initial_value_proportional_variation']].value
+        if not isinstance(var_ivpv, numbers.Number):
+            raise TableValidationError(f'initial_value_proportional_variation for variable {variable} '
+                                       f'on sheet {sheetname} was '
+                                       f'{var_ivpv}. Must be a numeric value.')
+        if var_ivpv <= 0:
+            raise TableValidationError(f'initial_value_proportional_variation for variable {variable} '
+                                       f'on sheet {sheetname} was '
+                                       f'{var_ivpv}. Must be a positive number.')
+
     def validate_json_interp_value(self, ref_value_json, variable, sheetname):
         dates = list(ref_value_json.keys())
         if not len(dates) == 2:
