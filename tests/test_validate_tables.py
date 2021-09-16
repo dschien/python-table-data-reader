@@ -152,3 +152,13 @@ class TestValidateTables(unittest.TestCase):
             handler.load_definitions(None, filename=get_static_path('has_group_primary.xlsx'))
 
         assert_exception_message(context.exception, 'params is a primary sheet. It cannot have a \'group\' column.')
+
+    def test_sample_mean_false_and_zero_ivpv(self):
+        handler = OpenpyxlTableHandler()
+        with self.assertRaises(TableValidationError) as context:
+            handler.load_definitions(None, filename=get_static_path('zero_ivpv.xlsx'), sample_mean=False)
+
+        assert_exception_message(context.exception,
+                                 'initial_value_proportional_variation for variable a '
+                                       f'on sheet params was '
+                                       f'0. Must be a positive number.')
