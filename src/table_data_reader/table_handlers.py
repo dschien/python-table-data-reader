@@ -363,7 +363,7 @@ class OpenpyxlTableHandler(TableHandler):
             for value in variable.values():
                 if isinstance(value, dict):
                     if groups is not None:
-                        assert list(value.keys()) == groups, \
+                        assert set(value.keys()) == set(groups), \
                             f"Expected values for groups: {groups}, but got values for groups: {list(value.keys())}"
                     else:
                         groups = list(value.keys())
