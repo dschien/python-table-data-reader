@@ -270,12 +270,16 @@ class OpenpyxlTableHandler(TableHandler):
                     rows = list(wb[variable_name].iter_rows())
                     header = [cell.value for cell in rows[0]]
                     for i, row in enumerate(rows[1:]):
+                        # if group name empty -> return
+                        if row[0].value == None:
+                            continue
                         temp_values = {}
                         for key, cell in zip(header, row):
                             temp_values[key] = cell.value  # reads values from the variable's sheet
                         temp_scenario = temp_values['scenario'] if temp_values['scenario'] else "default"
                         if temp_scenario == scenario:
                             for key in keys:
+                                # use defaults from param sheet
                                 if key in header and temp_values[key] is not None:
                                     group_values[key][temp_values["group"]] = temp_values[key]
                                 else:
@@ -359,12 +363,13 @@ class OpenpyxlTableHandler(TableHandler):
 
         groups = None
 
-        for variable in definitions_list:
-            for value in variable.values():
+        # (var, scenario, scenario_var)
+        for variable_tpl in definitions_list:
+            for value in variable_tpl[2].values():
                 if isinstance(value, dict):
                     if groups is not None:
                         assert set(value.keys()) == set(groups), \
-                            f"Expected values for groups: {groups}, but got values for groups: {list(value.keys())}"
+                            f"For var {variable_tpl[0]}, scenario {variable_tpl[1]} Expected values for groups: {groups}, but got values for groups: {list(value.keys())}"
                     else:
                         groups = list(value.keys())
 
@@ -616,11 +621,13 @@ class OpenpyxlTableHandler(TableHandler):
         table_visitor_partial(visitor_function=self.build_definitions)
 
         definitions_list = []
-        for var_set in definitions.values():
-            for scenario_var in var_set.values():
+        definitions_list_for_checking: [Tuple(Any, Any, Any)] = []
+        for var, var_set in definitions.items():
+            for scenario, scenario_var in var_set.items():
                 definitions_list.append(scenario_var)
+                definitions_list_for_checking.append((var, scenario, scenario_var))
 
-        self.check_all_groups_always_present(definitions_list)
+        self.check_all_groups_always_present(definitions_list_for_checking)
         return definitions_list
 
     def correct_ids(self, filename):
