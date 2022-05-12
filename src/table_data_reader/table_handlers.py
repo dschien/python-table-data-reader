@@ -373,7 +373,7 @@ class OpenpyxlTableHandler(TableHandler):
                     else:
                         groups = list(value.keys())
 
-    def assert_workbook_valid(self, workbook: openpyxl.Workbook, **kwargs):
+    def assert_workbook_valid(self, filename, workbook: openpyxl.Workbook, **kwargs):
         """
         Assert that a workbook is fully valid. Parses each sheet individually.
         :param workbook: The openpyxl workbook object.
@@ -390,7 +390,7 @@ class OpenpyxlTableHandler(TableHandler):
             # it is simply the only sheet that has 'variable' in cell A1.
             if rows[0][0].value == 'variable':
                 has_primary_sheet = True
-                self.assert_primary_sheet_valid(rows, sheetname, **kwargs)
+                self.assert_primary_sheet_valid(filename, rows, sheetname, **kwargs)
 
             # group-level sheets have names that are countrified var names.
             # todo NOTE this is subject to change to work around the 31-char sheet name limit! Will require revision.
@@ -400,7 +400,7 @@ class OpenpyxlTableHandler(TableHandler):
         if has_primary_sheet is False:
             raise TableValidationError('Table has no primary data sheets')
 
-    def assert_primary_sheet_valid(self, rows, sheetname, **kwargs):
+    def assert_primary_sheet_valid(self, filename, rows, sheetname, **kwargs):
         """
         Assert that a primary sheet is fully valid, both in rows and columns.
         :param rows: List of rows in the sheet to be parsed
@@ -415,7 +415,7 @@ class OpenpyxlTableHandler(TableHandler):
 
         for i, row in enumerate(rows):
             if row[0].value is not None:
-                self.assert_primary_row_valid(row, i + 2, indices, sheetname, **kwargs)
+                self.assert_primary_row_valid(filename, row, i + 2, indices, sheetname, **kwargs)
 
     def assert_no_invalid_primary_headers(self, header, sheetname):
         if 'group' in header:
@@ -469,7 +469,7 @@ class OpenpyxlTableHandler(TableHandler):
                 logger.warning(f'Table is missing {column_header} column for sheet {sheetname}')
             indices[column_header] = None
 
-    def assert_primary_row_valid(self, row, row_num: int, indices: Dict[str, int], sheetname: int, **kwargs):
+    def assert_primary_row_valid(self, filename, row, row_num: int, indices: Dict[str, int], sheetname: int, **kwargs):
         """
         Given a specific row in a primary sheet, check the vals and ensure they are appropriate.
         :param row: Contains the row as a list of vals.
@@ -503,7 +503,7 @@ class OpenpyxlTableHandler(TableHandler):
                 ref_value_json = json.loads(ref_value)
             except json.JSONDecodeError:
                 raise TableValidationError(f'ref value for interp variable {variable} on sheet {sheetname} was '
-                                           f'{ref_value}. Must be valid json')
+                                           f'{ref_value} in {filename}. Must be valid json')
             self.validate_json_interp_value(ref_value_json, variable, sheetname)
 
         var_ivpv = row[indices['initial_value_proportional_variation']].value
@@ -601,7 +601,7 @@ class OpenpyxlTableHandler(TableHandler):
         from openpyxl import load_workbook
         wb = load_workbook(filename, data_only=True)
 
-        self.assert_workbook_valid(wb, **kwargs)
+        self.assert_workbook_valid(filename, wb, **kwargs)
 
         # maps variables to their scenario and group-specific values.
         inline_groupings = {}
